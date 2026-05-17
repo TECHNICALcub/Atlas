@@ -285,7 +285,7 @@ function Atlas(){
         var k1=await atlasStorage.get("atlas-brain");
         if(k1&&k1.value){try{var p1=JSON.parse(k1.value);if(p1.nodes&&p1.nodes.length>0)candidates.push(p1);}catch(e){}}
         // Check old localStorage keys directly
-        var oldKeys=["atlas__atlas-brain","atlas-brain"];
+        var oldKeys=["a__atlas-brain","atlas__atlas-brain","atlas-brain","atlas__brain"];
         oldKeys.forEach(function(k){
           try{var v=localStorage.getItem(k);if(v){var p=JSON.parse(v);if(p.nodes&&p.nodes.length>0)candidates.push(p);}}catch(e){}
         });
