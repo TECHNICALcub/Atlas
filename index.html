@@ -280,10 +280,38 @@ function Atlas(){
     animLoop();
     (async function(){
       try{
-        var saved=await atlasStorage.get("atlas-brain");
-        if(saved&&saved.value){var parsed=JSON.parse(saved.value);if(parsed.nodes&&parsed.nodes.length>0){graphNR.current=parsed.nodes;stackR.current[0].nodes=parsed.nodes;stackR.current[0].links=parsed.links||[];if(parsed.subBrains)Object.entries(parsed.subBrains).forEach(function(e){cacheR.current.set(e[0],e[1]);});rebuild(parsed.nodes,parsed.links||[]);setSs("synced");setTimeout(function(){selfReflect(parsed.nodes,parsed.links||[]);},5000);setTimeout(function(){setBd(true);},1200);return;}}
+        // Try all possible storage keys and use the largest brain found
+        var candidates=[];
+        var k1=await atlasStorage.get("atlas-brain");
+        if(k1&&k1.value){try{var p1=JSON.parse(k1.value);if(p1.nodes&&p1.nodes.length>0)candidates.push(p1);}catch(e){}}
+        // Check old localStorage keys directly
+        var oldKeys=["atlas__atlas-brain","atlas-brain"];
+        oldKeys.forEach(function(k){
+          try{var v=localStorage.getItem(k);if(v){var p=JSON.parse(v);if(p.nodes&&p.nodes.length>0)candidates.push(p);}}catch(e){}
+        });
+        // Use the brain with the most nodes
+        if(candidates.length>0){
+          candidates.sort(function(a,b){return b.nodes.length-a.nodes.length;});
+          var best=candidates[0];
+          graphNR.current=best.nodes;stackR.current[0].nodes=best.nodes;stackR.current[0].links=best.links||[];
+          if(best.subBrains)Object.entries(best.subBrains).forEach(function(e){cacheR.current.set(e[0],e[1]);});
+          rebuild(best.nodes,best.links||[]);setSs("synced");
+          var lastReflect=parseInt(localStorage.getItem("atlas_last_reflect")||"0");
+          var hourAgo=Date.now()-3600000;
+          if(lastReflect<hourAgo){
+            localStorage.setItem("atlas_last_reflect",Date.now().toString());
+            setTimeout(function(){selfReflect(best.nodes,best.links||[]);},5000);
+          }
+          setTimeout(function(){setBd(true);},1200);
+          return;
+        }
       }catch(e){}
-      rebuild(SEED_NODES,SEED_LINKS);setSs("synced");setTimeout(function(){selfReflect(SEED_NODES,SEED_LINKS);},7000);setTimeout(function(){setBd(true);},1200);
+      rebuild(SEED_NODES,SEED_LINKS);setSs("synced");var lastReflect2=parseInt(localStorage.getItem("atlas_last_reflect")||"0");
+      var hourAgo2=Date.now()-3600000;
+      if(lastReflect2<hourAgo2){
+        localStorage.setItem("atlas_last_reflect",Date.now().toString());
+        setTimeout(function(){selfReflect(SEED_NODES,SEED_LINKS);},7000);
+      }setTimeout(function(){setBd(true);},1200);
     })();
     return function(){cancelAnimationFrame(rafR.current);ren.dispose();if(mount.contains(ren.domElement))mount.removeChild(ren.domElement);window.removeEventListener("resize",onR);};
   },[rebuild]);
@@ -521,12 +549,12 @@ function Atlas(){
 
       tr2&&h("div",{style:{position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",background:"rgba(248,113,113,0.08)",border:"1px solid rgba(248,113,113,0.25)",borderRadius:20,padding:"6px 14px",fontSize:10,color:"#fca5a5",fontStyle:"italic",whiteSpace:"nowrap"}},'"'+tr2+'"'),
 
-      selNode&&h("div",{style:{position:"absolute",bottom:64,left:12,background:"rgba(2,7,18,0.96)",border:"1px solid "+nc,borderRadius:8,padding:"10px 14px",maxWidth:230,boxShadow:"0 0 28px "+nc+"1a",zIndex:5}},
+      selNode&&h("div",{style:{position:"fixed",bottom:64,left:8,right:8,background:"rgba(2,7,18,0.98)",border:"1px solid "+nc,borderRadius:8,padding:"10px 14px",boxShadow:"0 0 28px "+nc+"44",zIndex:60}},
         h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:5}},
           h("span",{style:{color:nc,fontSize:11,fontWeight:"bold",letterSpacing:1}},selNode.label.toUpperCase()),
           h("button",{onClick:function(){setSelNode(null);},style:{color:"#e2e8f0",background:"none",border:"none",cursor:"pointer",fontSize:10,padding:0,fontFamily:"inherit"}},"✕")
         ),
-        h("div",{style:{fontSize:10,color:"#e2e8f0",lineHeight:1.75,marginBottom:8}},selNode.description||"No description"),
+        h("div",{style:{fontSize:10,color:"#e2e8f0",lineHeight:1.5,marginBottom:8,maxHeight:40,overflow:"hidden"}},selNode.description||"No description"),
         h("div",{style:{display:"flex",gap:6}},
           h("button",{onClick:function(){drillInto(selNode);},disabled:ip,style:{flex:1,padding:"6px 8px",background:nc+"18",border:"1px solid "+nc+"44",color:nc,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},ip?"LOADING...":"⬡ EXPAND"),
           h("button",{onClick:function(){setVw("chat");setCi("Tell me about "+selNode.label+" and its connections");},style:{flex:1,padding:"6px 8px",background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.25)",color:"#a78bfa",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ QUERY")
