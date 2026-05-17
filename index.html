@@ -348,7 +348,7 @@ function Atlas(){
       });
       var t=ts();nn.forEach(function(n){
         var isChild=childNodes.includes(n);
-        var parentLabel=isChild?nodes.find(function(x){return x.id===n.parent;})?.label:"root";
+        var parentLabel=isChild?(function(){var _p=nodes.find(function(x){return x.id===n.parent;});return _p?_p.label:'unknown';})():"root";
         setJn(function(prev){return [{time:t,type:"learned",title:n.label,detail:isChild?"Nested inside "+parentLabel+": "+(n.description||""):(n.description||"Learned from conversation"),nodeId:isChild?n.parent:n.id}].concat(prev.slice(0,49));});
       });
       if(saveR.current)saveR.current(an,al2);
