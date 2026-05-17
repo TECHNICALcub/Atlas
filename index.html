@@ -923,12 +923,11 @@ Rules: Extract 2-6 NEW concepts NOT in [${existingIds}]. Create 2-8 links to new
       const reply=data.choices?.[0]?.message?.content||"No response.";
       setMessages([...history,{role:"assistant",content:reply}]);
       speak(reply);
-    const reply2 = (data.choices?.[0]?.message?.content||"");
-      if (reply2) {
+      if (reply && reply !== "No response.") {
         const rn = viewStackRef.current[0].nodes;
         const rl = viewStackRef.current[0].links || simLinksRef.current;
-        setTimeout(() => learnFromConversation(msg, reply2, rn, rl), 1500);
-      executeSurgical(msg, rn, rl);
+        setTimeout(() => learnFromConversation(msg, reply, rn, rl), 1500);
+        executeSurgical(msg, rn, rl);
       }
     } catch(err){setMessages([...history,{role:"assistant",content:"Connection error. Retry."}]);}
     finally{setIsProcessing(false);}
