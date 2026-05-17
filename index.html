@@ -2,1146 +2,537 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Atlas"/>
 <meta name="mobile-web-app-capable" content="yes"/>
-<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Atlas%22%2C%22short_name%22%3A%22Atlas%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23020712%22%2C%22theme_color%22%3A%22%23020712%22%2C%22orientation%22%3A%22portrait%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20512%20512%27%3E%3Crect%20width%3D%27512%27%20height%3D%27512%27%20fill%3D%27%23020712%27%2F%3E%3Ccircle%20cx%3D%27256%27%20cy%3D%27256%27%20r%3D%2712%27%20fill%3D%27%2300d4ff%27%2F%3E%3Ctext%20x%3D%27256%27%20y%3D%27430%27%20font-family%3D%27monospace%27%20font-size%3D%2748%27%20fill%3D%27%2300d4ff%27%20text-anchor%3D%27middle%27%3EATLAS%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D"/>
 <meta name="theme-color" content="#020712"/>
 <title>Atlas</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body,#root{width:100%;height:100%;overflow:hidden;background:#020712}
-#setup{position:fixed;inset:0;background:#020712;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-family:"Courier New",monospace;z-index:999}
-#setup h1{color:#00d4ff;letter-spacing:12px;font-size:24px;text-shadow:0 0 30px #00d4ff88}
-#setup input{background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.2);color:#e2e8f0;padding:12px 16px;border-radius:6px;font-family:"Courier New",monospace;font-size:12px;width:300px;outline:none}
-#setup button{padding:12px 28px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);color:#00d4ff;border-radius:6px;cursor:pointer;font-family:"Courier New",monospace;font-size:10px;letter-spacing:2px}
-#setup .note{color:#1e3a5f;font-size:9px;letter-spacing:1px;text-align:center}
+html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:'Courier New',Courier,monospace;color:#e2e8f0}
+#root{width:100%;height:100%}
+#setup{position:fixed;inset:0;background:#020712;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:999}
+#setup h1{color:#00d4ff;font-size:24px;letter-spacing:12px;text-shadow:0 0 30px #00d4ff88;font-family:'Courier New',monospace}
+#setup input{background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.2);color:#e2e8f0;padding:12px 16px;border-radius:6px;font-family:'Courier New',monospace;font-size:12px;width:300px;outline:none}
+#setup button{padding:12px 28px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);color:#00d4ff;border-radius:6px;cursor:pointer;font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px}
+.note{color:#1e3a5f;font-size:9px;letter-spacing:1px;text-align:center;font-family:'Courier New',monospace}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.12}}
+::-webkit-scrollbar{width:2px}
+::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.08);border-radius:2px}
 </style>
 </head>
 <body>
 <div id="setup">
   <h1>A T L A S</h1>
-  <p style="font-size:9px;color:#1e3a5f;letter-spacing:2px">PERSONAL AI BRAIN</p>
+  <p style="font-size:9px;color:#1e3a5f;letter-spacing:2px;font-family:'Courier New',monospace">PERSONAL AI BRAIN</p>
   <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" spellcheck="false"/>
   <button id="initBtn">INITIALISE ATLAS</button>
   <div class="note">Get a free key at console.groq.com</div>
 </div>
-<div id="root" style="display:none;width:100%;height:100vh"></div>
+<div id="root" style="display:none"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-
 <script>
-const SUPABASE_URL = "https://zvujnkppvdwfpvczqnbc.supabase.co";
-const SUPABASE_KEY = "sb_publishable_uPcHMh53kGtcNEa2vpHnug_WC_JN2lb";
+var SUPABASE_URL="https://zvujnkppvdwfpvczqnbc.supabase.co";
+var SUPABASE_KEY="sb_publishable_uPcHMh53kGtcNEa2vpHnug_WC_JN2lb";
+var PALETTE=["#00d4ff","#a78bfa","#34d399","#fbbf24","#f87171","#fb7185","#38bdf8","#c084fc","#6ee7b7","#fcd34d"];
+var SEED_NODES=[
+{id:"second-brain",label:"Second Brain",group:0,description:"Your external cognitive system for capturing and connecting knowledge"},
+{id:"artificial-intelligence",label:"AI",group:1,description:"Machine systems that simulate human intelligence and pattern recognition"},
+{id:"learning",label:"Learning",group:2,description:"The active process of acquiring and integrating new knowledge"},
+{id:"obsidian",label:"Obsidian",group:4,description:"Personal knowledge management using bidirectional links"},
+{id:"memory",label:"Memory",group:2,description:"Biological encoding, storage and retrieval of information"},
+{id:"neural-networks",label:"Neural Networks",group:1,description:"Brain-inspired AI architecture that learns through layered transformations"},
+{id:"knowledge",label:"Knowledge",group:3,description:"Organised understanding built from information and experience"},
+{id:"creativity",label:"Creativity",group:5,description:"The capacity to generate novel ideas by combining existing concepts"},
+{id:"consciousness",label:"Consciousness",group:2,description:"The subjective experience of awareness"},
+{id:"neuroplasticity",label:"Neuroplasticity",group:7,description:"The brain's ability to rewire itself through experience"},
+{id:"pattern-recognition",label:"Patterns",group:2,description:"The cognitive ability to find structure within complex information"},
+{id:"systems-thinking",label:"Systems",group:0,description:"Understanding how components interact to produce emergent behaviour"},
+{id:"philosophy",label:"Philosophy",group:3,description:"The investigation of existence, knowledge, ethics and reality"},
+{id:"language",label:"Language",group:3,description:"The symbolic system through which thought is shared"},
+{id:"mathematics",label:"Mathematics",group:7,description:"The universal language of structure and relationship"},
+{id:"physics",label:"Physics",group:7,description:"The fundamental science describing matter, energy, space and time"},
+{id:"evolution",label:"Evolution",group:7,description:"The process of change through selection and inheritance"},
+{id:"flow-state",label:"Flow State",group:2,description:"Peak cognitive state where skill meets challenge"},
+{id:"intuition",label:"Intuition",group:2,description:"Rapid unconscious pattern matching that produces insight"},
+{id:"emergence",label:"Emergence",group:0,description:"When complex behaviour arises from simple rules"},
+{id:"information-theory",label:"Information",group:7,description:"The mathematical science of encoding and extracting meaning"},
+{id:"quantum-mechanics",label:"Quantum",group:7,description:"Physics of the very small where reality is probabilistic"},
+{id:"stoicism",label:"Stoicism",group:3,description:"Ancient philosophy of focusing only on what you control"},
+{id:"productivity",label:"Productivity",group:0,description:"The art of converting finite time into maximum meaningful output"}
+];
+var SEED_LINKS=[
+{source:"second-brain",target:"artificial-intelligence",label:"powered by"},
+{source:"second-brain",target:"learning",label:"accelerates"},
+{source:"second-brain",target:"obsidian",label:"runs on"},
+{source:"second-brain",target:"knowledge",label:"stores"},
+{source:"second-brain",target:"creativity",label:"amplifies"},
+{source:"second-brain",target:"productivity",label:"multiplies"},
+{source:"artificial-intelligence",target:"neural-networks",label:"uses"},
+{source:"artificial-intelligence",target:"pattern-recognition",label:"masters"},
+{source:"artificial-intelligence",target:"language",label:"processes"},
+{source:"artificial-intelligence",target:"consciousness",label:"approaches"},
+{source:"learning",target:"memory",label:"writes to"},
+{source:"learning",target:"neuroplasticity",label:"triggers"},
+{source:"learning",target:"flow-state",label:"deepens in"},
+{source:"neural-networks",target:"memory",label:"mimics"},
+{source:"neural-networks",target:"pattern-recognition",label:"performs"},
+{source:"knowledge",target:"creativity",label:"fuels"},
+{source:"knowledge",target:"systems-thinking",label:"reveals"},
+{source:"consciousness",target:"philosophy",label:"studied in"},
+{source:"consciousness",target:"emergence",label:"may be"},
+{source:"neuroplasticity",target:"learning",label:"enables deep"},
+{source:"pattern-recognition",target:"intuition",label:"powers"},
+{source:"systems-thinking",target:"emergence",label:"explains"},
+{source:"mathematics",target:"physics",label:"describes"},
+{source:"mathematics",target:"information-theory",label:"formalises"},
+{source:"physics",target:"quantum-mechanics",label:"includes"},
+{source:"physics",target:"evolution",label:"enables"},
+{source:"evolution",target:"consciousness",label:"produced"},
+{source:"evolution",target:"neural-networks",label:"inspired"},
+{source:"philosophy",target:"stoicism",label:"contains"},
+{source:"stoicism",target:"flow-state",label:"cultivates"},
+{source:"information-theory",target:"language",label:"models"},
+{source:"language",target:"philosophy",label:"shapes"},
+{source:"emergence",target:"consciousness",label:"explains"},
+{source:"intuition",target:"creativity",label:"sparks"},
+{source:"flow-state",target:"creativity",label:"unleashes"},
+{source:"quantum-mechanics",target:"consciousness",label:"may relate to"}
+];
 
-const atlasLocalStorage = {
-  get: async function(key) {
-    try {
-      var res = await fetch(SUPABASE_URL+"/rest/v1/atlas_brain?id=eq."+encodeURIComponent(key)+"&select=data", {
-        headers: {"apikey": SUPABASE_KEY, "Authorization": "Bearer "+SUPABASE_KEY}
-      });
-      var rows = await res.json();
-      if (rows && rows.length > 0 && rows[0].data) {
-        try { localStorage.setItem("atlas__"+key, rows[0].data); } catch(e) {}
-        return {value: rows[0].data};
-      }
-    } catch(e) {}
-    try {
-      var local = localStorage.getItem("atlas__"+key);
-      if (local) return {value: local};
-    } catch(e) {}
+// Storage
+var atlasStorage={
+  get:async function(k){
+    try{var r=await fetch(SUPABASE_URL+"/rest/v1/atlas_brain?id=eq."+encodeURIComponent(k)+"&select=data",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});var rows=await r.json();if(rows&&rows.length>0&&rows[0].data){try{localStorage.setItem("a__"+k,rows[0].data);}catch(e){}return{value:rows[0].data};}}catch(e){}
+    try{var l=localStorage.getItem("a__"+k);if(l)return{value:l};}catch(e){}
     return null;
   },
-  set: async function(key, value) {
-    try {
-      await fetch(SUPABASE_URL+"/rest/v1/atlas_brain", {
-        method: "POST",
-        headers: {"apikey": SUPABASE_KEY, "Authorization": "Bearer "+SUPABASE_KEY, "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"},
-        body: JSON.stringify({id: key, data: value, updated_at: new Date().toISOString()})
-      });
-    } catch(e) {}
-    try { localStorage.setItem("atlas__"+key, value); } catch(e) {}
-    return {key: key, value: value};
+  set:async function(k,v){
+    try{await fetch(SUPABASE_URL+"/rest/v1/atlas_brain",{method:"POST",headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},body:JSON.stringify({id:k,data:v,updated_at:new Date().toISOString()})});}catch(e){}
+    try{localStorage.setItem("a__"+k,v);}catch(e){}
+    return{key:k,value:v};
   }
 };
 
-function initAtlas() {
-  var key = document.getElementById("apiKey").value.trim();
-  if (!key.startsWith("gsk_")) { alert("Please enter a valid Groq key starting with gsk_"); return; }
-  window.__ATLAS_KEY__ = key;
-  localStorage.setItem("atlas_key", key);
-  launch();
+// Key management
+function resetKey(){if(window.confirm("Reset API key?")){localStorage.removeItem("atlas_key");location.reload();}}
+function initAtlas(){
+  var key=document.getElementById("apiKey").value.trim();
+  if(!key.startsWith("gsk_")){alert("Please enter a valid Groq key starting with gsk_");return;}
+  window.__K__=key;localStorage.setItem("atlas_key",key);launch();
 }
-
-function launch() {
-  document.getElementById("setup").style.display = "none";
-  document.getElementById("root").style.display = "block";
-  setTimeout(function() {
-    if (typeof window.AtlasApp !== "undefined") {
-      ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(window.AtlasApp));
-    }
-  }, 500);
+function launch(){
+  document.getElementById("setup").style.display="none";
+  document.getElementById("root").style.display="block";
+  ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Atlas));
 }
-
-document.getElementById("initBtn").addEventListener("click", initAtlas);
-document.getElementById("apiKey").addEventListener("keydown", function(e) { if(e.key==="Enter") initAtlas(); });
-
-window.addEventListener("load", function() {
-  var saved = localStorage.getItem("atlas_key") || localStorage.getItem("atlas_api_key");
-  if (saved && saved.startsWith("gsk_")) {
-    window.__ATLAS_KEY__ = saved;
-    launch();
-  }
+document.getElementById("initBtn").addEventListener("click",initAtlas);
+document.getElementById("apiKey").addEventListener("keydown",function(e){if(e.key==="Enter")initAtlas();});
+window.addEventListener("load",function(){
+  var s=localStorage.getItem("atlas_key")||localStorage.getItem("atlas_api_key");
+  if(s&&s.startsWith("gsk_")){window.__K__=s;launch();}
 });
-</script>
 
-<script type="text/babel" data-presets="react">
-const { useState, useEffect, useRef, useCallback } = React;
-
-
-const PALETTE = ["#00d4ff","#a78bfa","#34d399","#fbbf24","#f87171","#fb7185","#38bdf8","#c084fc","#6ee7b7","#fcd34d"];
-
-const SEED_NODES = [
-  {id:"second-brain",label:"Second Brain",group:0,description:"Your external cognitive system for capturing, connecting and amplifying knowledge beyond biological limits"},
-  {id:"artificial-intelligence",label:"AI",group:1,description:"Machine systems that simulate human intelligence, reasoning and pattern recognition"},
-  {id:"learning",label:"Learning",group:2,description:"The active process of acquiring, integrating and applying new knowledge and skills"},
-  {id:"obsidian",label:"Obsidian",group:4,description:"Personal knowledge management using bidirectional links and local markdown files"},
-  {id:"memory",label:"Memory",group:2,description:"Biological encoding, storage and retrieval of information — the foundation of identity"},
-  {id:"neural-networks",label:"Neural Networks",group:1,description:"Brain-inspired AI architecture that learns patterns through layered transformations"},
-  {id:"knowledge",label:"Knowledge",group:3,description:"Organised understanding built from information, experience and deep connection between concepts"},
-  {id:"creativity",label:"Creativity",group:5,description:"The capacity to generate novel ideas by combining existing concepts in unexpected ways"},
-  {id:"consciousness",label:"Consciousness",group:2,description:"The subjective experience of awareness — still one of science's deepest unsolved mysteries"},
-  {id:"neuroplasticity",label:"Neuroplasticity",group:7,description:"The brain's ability to rewire itself through experience, learning and deliberate practice"},
-  {id:"pattern-recognition",label:"Patterns",group:2,description:"The cognitive ability to find structure and meaning within complex information"},
-  {id:"systems-thinking",label:"Systems",group:0,description:"Understanding how components interact to produce emergent behaviour"},
-  {id:"philosophy",label:"Philosophy",group:3,description:"The systematic investigation of existence, knowledge, ethics, mind and reality"},
-  {id:"language",label:"Language",group:3,description:"The symbolic system through which thought is encoded, transmitted and shared"},
-  {id:"mathematics",label:"Mathematics",group:7,description:"The universal language of structure, quantity and relationship underlying all of reality"},
-  {id:"physics",label:"Physics",group:7,description:"The fundamental science describing matter, energy, space, time and the laws governing everything"},
-  {id:"evolution",label:"Evolution",group:7,description:"The process of gradual change through selection, adaptation and inheritance over time"},
-  {id:"flow-state",label:"Flow State",group:2,description:"Peak cognitive state of effortless immersion where skill meets challenge"},
-  {id:"intuition",label:"Intuition",group:2,description:"Rapid unconscious pattern matching that produces insight without explicit reasoning"},
-  {id:"emergence",label:"Emergence",group:0,description:"When complex behaviour arises spontaneously from simple rules — life, mind, markets"},
-  {id:"information-theory",label:"Information",group:7,description:"The mathematical science of encoding, transmitting and extracting meaning from data"},
-  {id:"quantum-mechanics",label:"Quantum",group:7,description:"Physics of the very small — particles in superposition, reality probabilistic"},
-  {id:"stoicism",label:"Stoicism",group:3,description:"Ancient philosophy of focusing only on what you control, meeting all else with equanimity"},
-  {id:"productivity",label:"Productivity",group:0,description:"The art of converting finite time and energy into maximum meaningful output"},
-];
-
-const SEED_LINKS = [
-  {source:"second-brain",target:"artificial-intelligence",label:"powered by"},
-  {source:"second-brain",target:"learning",label:"accelerates"},
-  {source:"second-brain",target:"obsidian",label:"runs on"},
-  {source:"second-brain",target:"knowledge",label:"stores"},
-  {source:"second-brain",target:"creativity",label:"amplifies"},
-  {source:"second-brain",target:"productivity",label:"multiplies"},
-  {source:"artificial-intelligence",target:"neural-networks",label:"uses"},
-  {source:"artificial-intelligence",target:"pattern-recognition",label:"masters"},
-  {source:"artificial-intelligence",target:"language",label:"processes"},
-  {source:"artificial-intelligence",target:"consciousness",label:"approaches"},
-  {source:"learning",target:"memory",label:"writes to"},
-  {source:"learning",target:"neuroplasticity",label:"triggers"},
-  {source:"learning",target:"flow-state",label:"deepens in"},
-  {source:"neural-networks",target:"memory",label:"mimics"},
-  {source:"neural-networks",target:"pattern-recognition",label:"performs"},
-  {source:"knowledge",target:"creativity",label:"fuels"},
-  {source:"knowledge",target:"systems-thinking",label:"reveals"},
-  {source:"consciousness",target:"philosophy",label:"studied in"},
-  {source:"consciousness",target:"emergence",label:"may be"},
-  {source:"neuroplasticity",target:"learning",label:"enables deep"},
-  {source:"pattern-recognition",target:"intuition",label:"powers"},
-  {source:"systems-thinking",target:"emergence",label:"explains"},
-  {source:"mathematics",target:"physics",label:"describes"},
-  {source:"mathematics",target:"information-theory",label:"formalises"},
-  {source:"physics",target:"quantum-mechanics",label:"includes"},
-  {source:"physics",target:"evolution",label:"enables"},
-  {source:"evolution",target:"consciousness",label:"produced"},
-  {source:"evolution",target:"neural-networks",label:"inspired"},
-  {source:"philosophy",target:"stoicism",label:"contains"},
-  {source:"stoicism",target:"flow-state",label:"cultivates"},
-  {source:"information-theory",target:"language",label:"models"},
-  {source:"language",target:"philosophy",label:"shapes"},
-  {source:"emergence",target:"consciousness",label:"explains"},
-  {source:"intuition",target:"creativity",label:"sparks"},
-  {source:"flow-state",target:"creativity",label:"unleashes"},
-  {source:"quantum-mechanics",target:"consciousness",label:"may relate to"},
-];
-
-// ── Quaternion trackball ────────────────────────────────────────
-function applyTrackballDelta(quat, dx, dy, sens = 0.005) {
-  const qH = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), -dx * sens);
-  const axisV = new THREE.Vector3(1,0,0).applyQuaternion(quat);
-  const qV = new THREE.Quaternion().setFromAxisAngle(axisV, -dy * sens);
-  quat.premultiply(qH).premultiply(qV).normalize();
+// Helpers
+function makeLabel(text,col){
+  var c=document.createElement("canvas");c.width=320;c.height=56;
+  var ctx=c.getContext("2d");ctx.clearRect(0,0,320,56);ctx.font="bold 20px 'Courier New',monospace";ctx.textAlign="center";ctx.shadowColor=col;ctx.shadowBlur=12;ctx.fillStyle=col;ctx.fillText(text,160,36);
+  var tex=new THREE.CanvasTexture(c);var mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});var spr=new THREE.Sprite(mat);spr.scale.set(Math.max(60,text.length*9),18,1);return spr;
 }
-function applyCamera(camera, quat, radius) {
-  const pos = new THREE.Vector3(0,0,radius).applyQuaternion(quat);
-  const up  = new THREE.Vector3(0,1,0).applyQuaternion(quat);
-  camera.position.copy(pos);
-  camera.up.copy(up);
-  camera.lookAt(0,0,0);
+function applyTB(q,dx,dy,s){var qH=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*s);var ax=new THREE.Vector3(1,0,0).applyQuaternion(q);var qV=new THREE.Quaternion().setFromAxisAngle(ax,-dy*s);q.premultiply(qH).premultiply(qV).normalize();}
+function applyCAM(cam,q,r){var p=new THREE.Vector3(0,0,r).applyQuaternion(q);var u=new THREE.Vector3(0,1,0).applyQuaternion(q);cam.position.copy(p);cam.up.copy(u);cam.lookAt(0,0,0);}
+async function groqCall(msgs,maxTok){
+  var res=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__K__},body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:maxTok||1000,messages:msgs})});
+  var d=await res.json();return d.choices&&d.choices[0]?d.choices[0].message.content:"";
 }
+function parseJ(raw){var m=raw.match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0]);}catch(e){return null;}}
+function ts(){var n=new Date();return n.getHours()+":"+String(n.getMinutes()).padStart(2,"0");}
+function getId(x){return typeof x==="object"?x.id:x;}
 
-// ── Label sprite ────────────────────────────────────────────────
-function makeLabel(text, colorHex, scale = 1) {
-  const c = document.createElement("canvas");
-  c.width = 320; c.height = 56;
-  const ctx = c.getContext("2d");
-  ctx.clearRect(0,0,320,56);
-  ctx.font = `bold ${Math.round(20*scale)}px 'Courier New',monospace`;
-  ctx.textAlign = "center";
-  ctx.shadowColor = colorHex; ctx.shadowBlur = 12;
-  ctx.fillStyle = colorHex;
-  ctx.fillText(text, 160, 36);
-  const tex = new THREE.CanvasTexture(c);
-  const mat = new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(Math.max(60, text.length*9), 18, 1);
-  return sprite;
-}
+// Atlas Component
+function Atlas(){
+  var h=React.createElement;
+  var u=React.useState;var ue=React.useEffect;var ur=React.useRef;var uc=React.useCallback;
 
-window.AtlasApp = function Atlas() {
-  const mountRef    = useRef(null);
-  const sceneRef    = useRef(null);
-  const cameraRef   = useRef(null);
-  const rendererRef = useRef(null);
-  const rafRef      = useRef(null);
-  const tickRef     = useRef(0);
+  var mountR=ur(null),sceneR=ur(null),camR=ur(null),rendR=ur(null),rafR=ur(null),tickR=ur(0);
+  var simNR=ur([]),simAR=ur(1.0),simLR=ur([]),linesR=ur(null);
+  var graphNR=ur(SEED_NODES.map(function(n){return Object.assign({},n);}));
+  var stackR=ur([{id:"root",label:"ATLAS",nodes:SEED_NODES.map(function(n){return Object.assign({},n);}),links:SEED_LINKS.map(function(l){return Object.assign({},l);})}]);
+  var cacheR=ur(new Map());
+  var trR=ur({rotQ:new THREE.Quaternion(),velDx:0,velDy:0,radius:520,dragging:false,lastX:0,lastY:0});
+  var pinR=ur(null),pdR=ur(null),tdR=ur(null),rcR=ur(new THREE.Raycaster()),selIdR=ur(null),recR=ur(null),cbR=ur(null),saveR=ur(null),starsR=ur([]);
 
-  // ── Sim state ───────────────────────────────────────────────────
-  const simNodesRef      = useRef([]);
-  const simAlphaRef      = useRef(1.0);
-  const simLinksRef      = useRef([]);
-  const linkLinesMeshRef = useRef(null);
+  var _sn=u(null);var selNode=_sn[0];var setSelNode=_sn[1];
+  var _vw=u("graph");var vw=_vw[0];var setVw=_vw[1];
+  var _ci=u("");var ci=_ci[0];var setCi=_ci[1];
+  var _ms=u([{role:"assistant",content:"ATLAS v9.2 ONLINE. Neural graph active. I learn from every conversation."}]);var msgs=_ms[0];var setMsgs=_ms[1];
+  var _ip=u(false);var ip=_ip[0];var setIp=_ip[1];
+  var _st=u({nodes:SEED_NODES.length,links:SEED_LINKS.length});var stats=_st[0];var setSt=_st[1];
+  var _al=u(false);var al=_al[0];var setAl=_al[1];
+  var _jn=u([]);var jn=_jn[0];var setJn=_jn[1];
+  var _ir=u(false);var ir=_ir[0];var setIr=_ir[1];
+  var _bd=u(false);var bd=_bd[0];var setBd=_bd[1];
+  var _bc=u([{id:"root",label:"ATLAS"}]);var bc=_bc[0];var setBc=_bc[1];
+  var _ss=u("loading");var ss=_ss[0];var setSs=_ss[1];
+  var _vs=u(false);var vs=_vs[0];var setVs=_vs[1];
+  var _ve=u(true);var ve=_ve[0];var setVe=_ve[1];
+  var _il=u(false);var il=_il[0];var setIl=_il[1];
+  var _tr=u("");var tr2=_tr[0];var setTr=_tr[1];
 
-  // ── View stack (drill-down) ─────────────────────────────────────
-  // Each level: { id, label, nodes:[...], links:[...] }
-  const viewStackRef    = useRef([{ id:"root", label:"ATLAS", nodes: SEED_NODES.map(n=>({...n})), links: SEED_LINKS.map(l=>({...l})) }]);
-  const subBrainCacheRef = useRef(new Map()); // nodeId → {nodes, links}
+  ue(function(){selIdR.current=selNode?selNode.id:null;},[selNode]);
 
-  // ── Trackball ───────────────────────────────────────────────────
-  const trackRef = useRef({ rotQ: new THREE.Quaternion(), velDx:0, velDy:0, radius:520, dragging:false, lastX:0, lastY:0 });
-  const pinchRef       = useRef(null);
-  const pointerDownRef = useRef(null);
-  const touchDownRef   = useRef(null);
-  const raycasterRef   = useRef(new THREE.Raycaster());
-  const selectedIdRef  = useRef(null);
-
-  // ── Voice ───────────────────────────────────────────────────────
-  const recognitionRef = useRef(null);
-  const chatBottomRef  = useRef(null);
-
-  // ── React state ─────────────────────────────────────────────────
-  const [selectedNode,  setSelectedNode]  = useState(null);
-  const [view,          setView]          = useState("graph");
-  const [inputText,     setInputText]     = useState("");
-  const [chatInput,     setChatInput]     = useState("");
-  const [messages,      setMessages]      = useState([
-    {role:"assistant", content:"ATLAS v9 ONLINE. Neural graph active. Autonomous learning enabled — your brain grows with every conversation."}
-  ]);
-  const [isProcessing,  setIsProcessing]  = useState(false);
-  const [isExpanding,   setIsExpanding]   = useState(false);
-  const [stats,         setStats]         = useState({nodes: SEED_NODES.length, links: SEED_LINKS.length});
-  const [isListening,   setIsListening]   = useState(false);
-  const [voiceSupported]                  = useState(()=>"SpeechRecognition" in window||"webkitSpeechRecognition" in window);
-  const [voiceEnabled,  setVoiceEnabled]  = useState(true);
-  const [transcript,    setTranscript]    = useState("");
-  const [searchEnabled, setSearchEnabled] = useState(true);
-  const [bootDone,      setBootDone]      = useState(false);
-  const [isAutoLearning, setIsAutoLearning] = useState(false);
-  const [autoLearnLog,   setAutoLearnLog]   = useState([]);
-  const [realTimeCtx,  setRealTimeCtx]  = useState("");
-  const [breadcrumbs,   setBreadcrumbs]   = useState([{id:"root",label:"ATLAS"}]);
-  const [syncStatus,    setSyncStatus]    = useState("loading"); // loading | synced | saving
-
-  useEffect(()=>{ selectedIdRef.current = selectedNode?.id||null; },[selectedNode]);
-
-  // ── Rebuild Three.js scene objects ─────────────────────────────
-  const rebuildGraph = useCallback((nodes, links, resetCamera = false) => {
-    const scene = sceneRef.current;
-    if (!scene) return;
-
-    const posMap = {};
-    simNodesRef.current.forEach(n => {
-      posMap[n.id] = {x:n.x,y:n.y,z:n.z,vx:n.vx,vy:n.vy,vz:n.vz};
-      scene.remove(n.mesh);     n.mesh?.geometry.dispose();     n.mesh?.material.dispose();
-      scene.remove(n.glowMesh); n.glowMesh?.geometry.dispose(); n.glowMesh?.material.dispose();
-      if (n.labelSprite){ scene.remove(n.labelSprite); n.labelSprite.material.map?.dispose(); n.labelSprite.material.dispose(); }
+  var rebuild=uc(function(nodes,links,resetCam){
+    var scene=sceneR.current;if(!scene)return;
+    var pm={};
+    simNR.current.forEach(function(n){
+      pm[n.id]={x:n.x,y:n.y,z:n.z,vx:n.vx||0,vy:n.vy||0,vz:n.vz||0};
+      scene.remove(n.mesh);if(n.mesh){n.mesh.geometry.dispose();n.mesh.material.dispose();}
+      scene.remove(n.glowMesh);if(n.glowMesh){n.glowMesh.geometry.dispose();n.glowMesh.material.dispose();}
+      if(n.labelSprite){scene.remove(n.labelSprite);if(n.labelSprite.material.map)n.labelSprite.material.map.dispose();n.labelSprite.material.dispose();}
     });
-    if (linkLinesMeshRef.current){
-      scene.remove(linkLinesMeshRef.current);
-      linkLinesMeshRef.current.geometry.dispose();
-      linkLinesMeshRef.current.material.dispose();
-      linkLinesMeshRef.current = null;
-    }
-
-    const spread = 200;
-    simNodesRef.current = nodes.map(node => {
-      const ex = posMap[node.id];
-      return { ...node,
-        x: ex?.x ?? (Math.random()-0.5)*spread,
-        y: ex?.y ?? (Math.random()-0.5)*spread,
-        z: ex?.z ?? (Math.random()-0.5)*spread,
-        vx: ex?.vx??0, vy:ex?.vy??0, vz:ex?.vz??0
-      };
+    if(linesR.current){scene.remove(linesR.current);linesR.current.geometry.dispose();linesR.current.material.dispose();linesR.current=null;}
+    var sp=200;
+    simNR.current=nodes.map(function(node){
+      var ex=pm[node.id];
+      return Object.assign({},node,{x:ex?ex.x:(Math.random()-0.5)*sp,y:ex?ex.y:(Math.random()-0.5)*sp,z:ex?ex.z:(Math.random()-0.5)*sp,vx:ex?ex.vx:0,vy:ex?ex.vy:0,vz:ex?ex.vz:0});
     });
-
-    simNodesRef.current.forEach(node => {
-      const isHub   = node.isHub;
-      const colorHex= PALETTE[node.group%PALETTE.length];
-      const color   = new THREE.Color(colorHex);
-      const r       = isHub ? 12 : 6+Math.min(node.label.length*0.28,5);
-      node.r = r;
-
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(r,20,20),
-        new THREE.MeshPhongMaterial({color, emissive:color, emissiveIntensity: isHub?0.6:0.35, shininess:90, transparent:true, opacity:0.95})
-      );
-      mesh.userData.nodeId = node.id;
-      mesh.position.set(node.x,node.y,node.z);
-      scene.add(mesh); node.mesh = mesh;
-
-      const glowMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(r*2.2,12,12),
-        new THREE.MeshBasicMaterial({color, transparent:true, opacity: isHub?0.14:0.07, blending:THREE.AdditiveBlending, depthWrite:false})
-      );
-      glowMesh.position.copy(mesh.position);
-      scene.add(glowMesh); node.glowMesh = glowMesh;
-
-      const labelSprite = makeLabel(node.label, colorHex, isHub?1.3:1);
-      labelSprite.position.set(node.x, node.y-r-14, node.z);
-      scene.add(labelSprite); node.labelSprite = labelSprite;
+    simNR.current.forEach(function(node){
+      var ch=PALETTE[node.group%PALETTE.length];var col=new THREE.Color(ch);var r=6+Math.min(node.label.length*0.28,5);node.r=r;
+      var mesh=new THREE.Mesh(new THREE.SphereGeometry(r,20,20),new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:0.35,shininess:90,transparent:true,opacity:0.95}));
+      mesh.userData.nodeId=node.id;mesh.position.set(node.x,node.y,node.z);scene.add(mesh);node.mesh=mesh;
+      var glow=new THREE.Mesh(new THREE.SphereGeometry(r*2.2,12,12),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.07,blending:THREE.AdditiveBlending,depthWrite:false}));
+      glow.position.copy(mesh.position);scene.add(glow);node.glowMesh=glow;
+      var spr=makeLabel(node.label,ch);spr.position.set(node.x,node.y-r-14,node.z);scene.add(spr);node.labelSprite=spr;
     });
-
-    const flatLinks = links.map(l=>({
-      source: typeof l.source==="object"?l.source.id:l.source,
-      target: typeof l.target==="object"?l.target.id:l.target,
-      label: l.label
-    }));
-    simLinksRef.current = flatLinks;
-
-    const pos = new Float32Array(flatLinks.length*6);
-    const col = new Float32Array(flatLinks.length*6);
-    flatLinks.forEach((lnk,i)=>{
-      const s=simNodesRef.current.find(n=>n.id===lnk.source);
-      const t=simNodesRef.current.find(n=>n.id===lnk.target);
-      if(!s||!t) return;
-      const b=i*6;
-      pos[b]=s.x;pos[b+1]=s.y;pos[b+2]=s.z;
-      pos[b+3]=t.x;pos[b+4]=t.y;pos[b+5]=t.z;
-      const sc=new THREE.Color(PALETTE[(s.group||0)%PALETTE.length]);
-      const tc=new THREE.Color(PALETTE[(t.group||0)%PALETTE.length]);
-      col[b]=sc.r;col[b+1]=sc.g;col[b+2]=sc.b;
-      col[b+3]=tc.r;col[b+4]=tc.g;col[b+5]=tc.b;
+    var fl=links.map(function(l){return{source:getId(l.source),target:getId(l.target),label:l.label};});
+    simLR.current=fl;
+    var pos=new Float32Array(fl.length*6);var col2=new Float32Array(fl.length*6);
+    fl.forEach(function(lnk,i){
+      var s=simNR.current.find(function(n){return n.id===lnk.source;});var t=simNR.current.find(function(n){return n.id===lnk.target;});if(!s||!t)return;
+      var b=i*6;pos[b]=s.x;pos[b+1]=s.y;pos[b+2]=s.z;pos[b+3]=t.x;pos[b+4]=t.y;pos[b+5]=t.z;
+      var sc=new THREE.Color(PALETTE[(s.group||0)%PALETTE.length]);var tc=new THREE.Color(PALETTE[(t.group||0)%PALETTE.length]);
+      col2[b]=sc.r;col2[b+1]=sc.g;col2[b+2]=sc.b;col2[b+3]=tc.r;col2[b+4]=tc.g;col2[b+5]=tc.b;
     });
-    const lGeo=new THREE.BufferGeometry();
-    lGeo.setAttribute("position",new THREE.BufferAttribute(pos,3));
-    lGeo.setAttribute("color",   new THREE.BufferAttribute(col,3));
-    const linesMesh=new THREE.LineSegments(lGeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.28,blending:THREE.AdditiveBlending,depthWrite:false}));
-    scene.add(linesMesh);
-    linkLinesMeshRef.current = linesMesh;
+    var lg=new THREE.BufferGeometry();lg.setAttribute("position",new THREE.BufferAttribute(pos,3));lg.setAttribute("color",new THREE.BufferAttribute(col2,3));
+    var lm=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.28,blending:THREE.AdditiveBlending,depthWrite:false}));
+    scene.add(lm);linesR.current=lm;
+    simAR.current=1.0;
+    if(resetCam){trR.current.rotQ=new THREE.Quaternion();trR.current.radius=520;if(camR.current)applyCAM(camR.current,trR.current.rotQ,520);}
+    setSt({nodes:nodes.length,links:fl.length});setSelNode(null);
+  },[]);
 
-    simAlphaRef.current = 1.0;
-    if (resetCamera){ trackRef.current.rotQ=new THREE.Quaternion(); trackRef.current.radius=520; if(cameraRef.current) applyCamera(cameraRef.current,trackRef.current.rotQ,trackRef.current.radius); }
-    setStats({nodes:nodes.length, links:flatLinks.length});
-    setSelectedNode(null);
-  }, []);
-
-  // ── Drill INTO a node ────────────────────────────────────────────
-  const drillInto = useCallback(async (node) => {
-    setIsExpanding(true);
-    try {
-      let subBrain = subBrainCacheRef.current.get(node.id);
-
-      if (!subBrain) {
-        // Generate sub-brain from Atlas
-        const res = await fetch("https://api.groq.com/openai/v1/chat/completions",{
-          method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__ATLAS_KEY__},
-          body: JSON.stringify({
-            model:"llama-3.3-70b-versatile", max_tokens:1200,
-            system:`You are generating a deep sub-brain for a knowledge node. Return ONLY valid JSON, no markdown, no backticks.
-
-Format exactly:
-{"nodes":[{"id":"PARENT_ID--kebab-child","label":"1-3 Word Name","group":0,"description":"one precise sentence","isHub":false}],"links":[{"source":"id","target":"id","label":"relationship verb"}]}
-
-Rules:
-- The FIRST node must have "isHub":true, id="${node.id}", label="${node.label}", and be the central concept
-- Generate 5-7 child nodes that are KEY ASPECTS, FACETS, COMPONENTS, or SUB-CONCEPTS of "${node.label}"
-- All child node IDs must start with "${node.id}--"
-- Create 6-10 links — children should link to the hub AND to each other where meaningful
-- Make this feel like a complete standalone brain exploring "${node.label}" deeply
-- Groups: 0=systems,1=technology,2=cognition,3=knowledge,4=tools,5=concepts,6=people,7=science
-- Return ONLY JSON`,
-            messages:[{role:"user",content:`Generate a deep sub-brain for the concept: "${node.label}" — ${node.description||""}`}]
-          })
-        });
-        const data = await res.json();
-        const raw  = data.choices?.[0]?.message?.content||"";
-        const match = raw.match(/\{[\s\S]*\}/);
-        if (!match) throw new Error("No JSON");
-        const parsed = JSON.parse(match[0]);
-
-        // Ensure hub node is correct
-        const nodes = (parsed.nodes||[]).map(n => n.isHub ? {...n, id:node.id, label:node.label, description:node.description, group:node.group, isHub:true} : n);
-        const links = parsed.links||[];
-
-        subBrain = { nodes, links };
-        subBrainCacheRef.current.set(node.id, subBrain);
-      }
-
-      // Push to view stack
-      const stack = viewStackRef.current;
-      stack.push({ id:node.id, label:node.label, nodes:subBrain.nodes, links:subBrain.links });
-      viewStackRef.current = [...stack];
-      setBreadcrumbs(stack.map(l=>({id:l.id,label:l.label})));
-      rebuildGraph(subBrain.nodes, subBrain.links, true);
-      saveBrain(viewStackRef.current[0].nodes, viewStackRef.current[0].links);
-    } catch(err) { console.error(err); }
-    finally { setIsExpanding(false); }
-  }, [rebuildGraph]);
-
-  // ── Drill OUT (back up) ──────────────────────────────────────────
-  const drillOut = useCallback(() => {
-    const stack = viewStackRef.current;
-    if (stack.length <= 1) return;
-    stack.pop();
-    viewStackRef.current = [...stack];
-    const level = stack[stack.length-1];
-    setBreadcrumbs(stack.map(l=>({id:l.id,label:l.label})));
-    rebuildGraph(level.nodes, level.links, true);
-  }, [rebuildGraph]);
-
-  // ── Drill to specific breadcrumb level ─────────────────────────
-  const drillTo = useCallback((idx) => {
-    const stack = viewStackRef.current;
-    if (idx >= stack.length-1) return;
-    viewStackRef.current = stack.slice(0, idx+1);
-    const level = viewStackRef.current[viewStackRef.current.length-1];
-    setBreadcrumbs(viewStackRef.current.map(l=>({id:l.id,label:l.label})));
-    rebuildGraph(level.nodes, level.links, true);
-  }, [rebuildGraph]);
-
-  // ── Three.js init + animation loop ─────────────────────────────
-  useEffect(()=>{
-    const mount = mountRef.current;
-    if (!mount) return;
-    const W=mount.offsetWidth, H=mount.offsetHeight;
-
-    const scene=new THREE.Scene();
-    scene.fog=new THREE.FogExp2(0x020712,0.0006);
-    sceneRef.current=scene;
-
-    const camera=new THREE.PerspectiveCamera(60,W/H,1,4000);
-    cameraRef.current=camera;
-    applyCamera(camera,trackRef.current.rotQ,trackRef.current.radius);
-
-    const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
-    renderer.setSize(W,H);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-    renderer.setClearColor(0x020712,1);
-    mount.appendChild(renderer.domElement);
-    rendererRef.current=renderer;
-
+  // Three init
+  ue(function(){
+    var mount=mountR.current;if(!mount)return;
+    setVs('SpeechRecognition' in window||'webkitSpeechRecognition' in window);
+    starsR.current=Array.from({length:140},function(){return{x:Math.random(),y:Math.random(),r:Math.random()*1.3+0.2,ph:Math.random()*Math.PI*2,sp:Math.random()*0.007+0.002};});
+    var W=mount.offsetWidth,H=mount.offsetHeight;
+    var scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x020712,0.0006);sceneR.current=scene;
+    var cam=new THREE.PerspectiveCamera(60,W/H,1,4000);camR.current=cam;applyCAM(cam,trR.current.rotQ,trR.current.radius);
+    var ren=new THREE.WebGLRenderer({antialias:true,alpha:false});ren.setSize(W,H);ren.setPixelRatio(Math.min(window.devicePixelRatio,2));ren.setClearColor(0x020712,1);mount.appendChild(ren.domElement);rendR.current=ren;
     scene.add(new THREE.AmbientLight(0x1a2a4a,2.5));
-    const pl1=new THREE.PointLight(0x00d4ff,3,900); pl1.position.set(250,200,200);   scene.add(pl1);
-    const pl2=new THREE.PointLight(0xa78bfa,2,700); pl2.position.set(-200,-150,-200); scene.add(pl2);
-    const pl3=new THREE.PointLight(0x34d399,1.5,600); pl3.position.set(0,-300,300);  scene.add(pl3);
-
-    const N=1400,sp=new Float32Array(N*3),sc=new Float32Array(N*3);
-    for(let i=0;i<N;i++){
-      const th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1),r=900+Math.random()*600;
-      sp[i*3]=r*Math.sin(ph)*Math.cos(th);sp[i*3+1]=r*Math.sin(ph)*Math.sin(th);sp[i*3+2]=r*Math.cos(ph);
-      sc[i*3]=0.55+Math.random()*0.45;sc[i*3+1]=0.65+Math.random()*0.35;sc[i*3+2]=0.8+Math.random()*0.2;
-    }
-    const sGeo=new THREE.BufferGeometry();
-    sGeo.setAttribute("position",new THREE.BufferAttribute(sp,3));
-    sGeo.setAttribute("color",   new THREE.BufferAttribute(sc,3));
+    var pl1=new THREE.PointLight(0x00d4ff,3,900);pl1.position.set(250,200,200);scene.add(pl1);
+    var pl2=new THREE.PointLight(0xa78bfa,2,700);pl2.position.set(-200,-150,-200);scene.add(pl2);
+    var pl3=new THREE.PointLight(0x34d399,1.5,600);pl3.position.set(0,-300,300);scene.add(pl3);
+    var N=1400,sp=new Float32Array(N*3),sc=new Float32Array(N*3);
+    for(var i=0;i<N;i++){var th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1),rr=900+Math.random()*600;sp[i*3]=rr*Math.sin(ph)*Math.cos(th);sp[i*3+1]=rr*Math.sin(ph)*Math.sin(th);sp[i*3+2]=rr*Math.cos(ph);sc[i*3]=0.55+Math.random()*0.45;sc[i*3+1]=0.65+Math.random()*0.35;sc[i*3+2]=0.8+Math.random()*0.2;}
+    var sGeo=new THREE.BufferGeometry();sGeo.setAttribute("position",new THREE.BufferAttribute(sp,3));sGeo.setAttribute("color",new THREE.BufferAttribute(sc,3));
     scene.add(new THREE.Points(sGeo,new THREE.PointsMaterial({size:1.2,vertexColors:true,transparent:true,opacity:0.65})));
-
-    // ── Load persisted brain from storage ─────────────────────
-    (async () => {
-      try {
-        const saved = await atlasLocalStorage.get("atlas-brain");
-        if (saved && saved.value) {
-          const { nodes, links, subBrains } = JSON.parse(saved.value);
-          if (nodes && nodes.length > 0) {
-            graphNodesRef.current = nodes;
-            viewStackRef.current[0].nodes = nodes;
-            viewStackRef.current[0].links = links || [];
-            if (subBrains) {
-              Object.entries(subBrains).forEach(([k,v]) => subBrainCacheRef.current.set(k, v));
-            }
-            rebuildGraph(nodes, links || []);
-            setSyncStatus("synced");
-            setTimeout(() => selfReflect(nodes, links || []), 5000);
-            return;
-          }
-        }
-      } catch(e) { console.log("No saved brain, starting fresh"); }
-      rebuildGraph(SEED_NODES, SEED_LINKS);
-      setSyncStatus("synced");
-      setTimeout(() => selfReflect(SEED_NODES, SEED_LINKS), 7000);
+    var onR=function(){var W2=mount.offsetWidth,H2=mount.offsetHeight;ren.setSize(W2,H2);cam.aspect=W2/H2;cam.updateProjectionMatrix();};
+    window.addEventListener("resize",onR);
+    function anim(){
+      rafR.current=requestAnimationFrame(anim);var t=tickR.current++;var tr=trR.current;
+      if(!tr.dragging){tr.velDx*=0.96;tr.velDy*=0.96;}
+      if(Math.sqrt(tr.velDx*tr.velDx+tr.velDy*tr.velDy)>0.00003){applyTB(tr.rotQ,tr.velDx/0.005,tr.velDy/0.005,0.005);applyCAM(cam,tr.rotQ,tr.radius);}
+      var ns=simNR.current;
+      if(simAR.current>0.001){
+        var a=simAR.current;
+        for(var ii=0;ii<ns.length;ii++){for(var jj=ii+1;jj<ns.length;jj++){var dx=ns[jj].x-ns[ii].x,dy=ns[jj].y-ns[ii].y,dz=ns[jj].z-ns[ii].z;var d2=dx*dx+dy*dy+dz*dz+1,d=Math.sqrt(d2);var f=-16000*a/d2,fx=dx/d*f,fy=dy/d*f,fz=dz/d*f;ns[ii].vx+=fx;ns[ii].vy+=fy;ns[ii].vz+=fz;ns[jj].vx-=fx;ns[jj].vy-=fy;ns[jj].vz-=fz;}}
+        simLR.current.forEach(function(lnk){var s=ns.find(function(n){return n.id===lnk.source;});var tN=ns.find(function(n){return n.id===lnk.target;});if(!s||!tN)return;var dx=tN.x-s.x,dy=tN.y-s.y,dz=tN.z-s.z;var d=Math.sqrt(dx*dx+dy*dy+dz*dz)+0.01;var f=(d-130)*0.055*a,fx=dx/d*f,fy=dy/d*f,fz=dz/d*f;s.vx+=fx;s.vy+=fy;s.vz+=fz;tN.vx-=fx;tN.vy-=fy;tN.vz-=fz;});
+        ns.forEach(function(n){n.vx+=(-n.x*0.012*a);n.vy+=(-n.y*0.012*a);n.vz+=(-n.z*0.012*a);n.vx*=0.88;n.vy*=0.88;n.vz*=0.88;n.x+=n.vx;n.y+=n.vy;n.z+=n.vz;});
+        simAR.current*=0.994;
+      }
+      var sid=selIdR.current;
+      ns.forEach(function(node){
+        if(!node.mesh)return;var isSel=node.id===sid;
+        var pulse=1+(isSel?0.18:0.07)*Math.sin(t*0.04+node.id.charCodeAt(0)*0.5);
+        node.mesh.position.set(node.x,node.y,node.z);node.mesh.scale.setScalar(pulse);
+        if(node.glowMesh){node.glowMesh.position.set(node.x,node.y,node.z);node.glowMesh.scale.setScalar(pulse*(isSel?1.6:1));node.glowMesh.material.opacity=isSel?0.22:0.07+0.04*Math.sin(t*0.03+node.id.charCodeAt(0)*0.8);}
+        if(node.labelSprite)node.labelSprite.position.set(node.x,node.y-(node.r||8)-14,node.z);
+        if(node.mesh.material)node.mesh.material.emissiveIntensity=isSel?0.9:0.28+0.12*Math.sin(t*0.025+node.id.charCodeAt(0)*0.6);
+      });
+      var lines=linesR.current;
+      if(lines){var pp=lines.geometry.attributes.position.array;simLR.current.forEach(function(lnk,idx){var s=ns.find(function(n){return n.id===lnk.source;});var tN=ns.find(function(n){return n.id===lnk.target;});if(!s||!tN)return;var b=idx*6;pp[b]=s.x;pp[b+1]=s.y;pp[b+2]=s.z;pp[b+3]=tN.x;pp[b+4]=tN.y;pp[b+5]=tN.z;});lines.geometry.attributes.position.needsUpdate=true;lines.material.opacity=0.22+0.08*Math.sin(t*0.015);}
+      ren.render(scene,cam);
+    }
+    anim();
+    (async function(){
+      try{
+        var saved=await atlasStorage.get("atlas-brain");
+        if(saved&&saved.value){var parsed=JSON.parse(saved.value);if(parsed.nodes&&parsed.nodes.length>0){graphNR.current=parsed.nodes;stackR.current[0].nodes=parsed.nodes;stackR.current[0].links=parsed.links||[];if(parsed.subBrains)Object.entries(parsed.subBrains).forEach(function(e){cacheR.current.set(e[0],e[1]);});rebuild(parsed.nodes,parsed.links||[]);setSs("synced");setTimeout(function(){selfReflect(parsed.nodes,parsed.links||[]);},5000);setTimeout(function(){setBd(true);},1200);return;}}
+      }catch(e){}
+      rebuild(SEED_NODES,SEED_LINKS);setSs("synced");setTimeout(function(){selfReflect(SEED_NODES,SEED_LINKS);},7000);setTimeout(function(){setBd(true);},1200);
     })();
+    return function(){cancelAnimationFrame(rafR.current);ren.dispose();if(mount.contains(ren.domElement))mount.removeChild(ren.domElement);window.removeEventListener("resize",onR);};
+  },[rebuild]);
 
-    const onResize=()=>{ const W2=mount.offsetWidth,H2=mount.offsetHeight; renderer.setSize(W2,H2); camera.aspect=W2/H2; camera.updateProjectionMatrix(); };
-    window.addEventListener("resize",onResize);
+  ue(function(){cbR.current&&cbR.current.scrollIntoView({behavior:"smooth"});},[msgs]);
 
-    const DAMP=0.96;
-    const animate=()=>{
-      rafRef.current=requestAnimationFrame(animate);
-      const t=tickRef.current++, tr=trackRef.current, cam=cameraRef.current;
+  var saveBrain=uc(async function(nodes,links){
+    try{setSs("saving");var sb={};cacheR.current.forEach(function(v,k){sb[k]=v;});await atlasStorage.set("atlas-brain",JSON.stringify({nodes:nodes,links:links,subBrains:sb}));setSs("synced");}catch(e){setSs("synced");}
+  },[]);
+  ue(function(){saveR.current=saveBrain;},[saveBrain]);
 
-      if(!tr.dragging){ tr.velDx*=DAMP; tr.velDy*=DAMP; }
-      const _spd=Math.sqrt(tr.velDx*tr.velDx+tr.velDy*tr.velDy);
-      if(_spd>0.00003){
-        applyTrackballDelta(tr.rotQ,tr.velDx/0.005,tr.velDy/0.005,0.005);
-        applyCamera(cam,tr.rotQ,tr.radius);
+  var flyTo=uc(function(nodeId){
+    setVw("graph");
+    setTimeout(function(){
+      var node=simNR.current.find(function(n){return n.id===nodeId;});if(!node||!node.x)return;
+      setSelNode(Object.assign({},node));
+      var tr=trR.current;var target=new THREE.Vector3(node.x,node.y,node.z).normalize();
+      var tQ=new THREE.Quaternion();tQ.setFromUnitVectors(new THREE.Vector3(0,0,1),target.clone().negate());
+      var fr=0;
+      function a(){fr++;tr.rotQ.slerp(tQ,0.06);tr.radius+=(320-tr.radius)*0.06;if(camR.current){var p=new THREE.Vector3(0,0,tr.radius).applyQuaternion(tr.rotQ);var u=new THREE.Vector3(0,1,0).applyQuaternion(tr.rotQ);camR.current.position.copy(p);camR.current.up.copy(u);camR.current.lookAt(0,0,0);}if(fr<50)requestAnimationFrame(a);}
+      a();
+    },300);
+  },[]);
+
+  function selfReflect(nodes,links){
+    if(nodes.length<4)return;setAl(true);
+    var ns2=nodes.map(function(n){return n.id+":"+n.label;}).join(", ");
+    var ls2=links.map(function(l){return getId(l.source)+"->"+getId(l.target);}).join(", ");
+    groqCall([{role:"system",content:"Generate 2-3 new bridge concept nodes. Return ONLY valid JSON: {nodes:[{id,label,group,description}],links:[{source,target,label}]}. Return ONLY JSON."},{role:"user",content:"Nodes: "+ns2+"\nLinks: "+ls2+"\nGenerate bridge nodes."}],800)
+    .then(function(raw){
+      var parsed=parseJ(raw);if(!parsed)return;
+      var eids=new Set(nodes.map(function(n){return n.id;}));var nn=(parsed.nodes||[]).filter(function(n){return !eids.has(n.id);});if(!nn.length)return;
+      var eks=new Set(links.map(function(l){return getId(l.source)+"--"+getId(l.target);}));var nl=(parsed.links||[]).filter(function(l){return !eks.has(l.source+"--"+l.target);});
+      var an=nodes.concat(nn);var al2=links.concat(nl);
+      stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;rebuild(an,al2,false);
+      var t=ts();nn.forEach(function(n){setJn(function(prev){return [{time:t,type:"reflected",title:n.label,detail:n.description||"Self-discovered bridge",nodeId:n.id}].concat(prev.slice(0,49));});});
+      if(saveR.current)saveR.current(an,al2);
+    }).catch(function(e){console.error(e);}).finally(function(){setAl(false);});
+  }
+
+  function learnFrom(userMsg,reply,nodes,links){
+    setAl(true);
+    var eids=nodes.map(function(n){return n.id;}).join(", ");
+    groqCall([{role:"system",content:"Extract NEW concepts not in ["+eids+"]. Return ONLY valid JSON or NULL. Format: {nodes:[{id,label,group,description}],links:[{source,target,label}]}. Max 2 nodes."},{role:"user",content:"User: "+userMsg.slice(0,200)+"\nAtlas: "+reply.slice(0,200)}],500)
+    .then(function(raw){
+      var trimmed=(raw||"").trim();if(trimmed==="NULL"||!trimmed.includes("{"))return;
+      var parsed=parseJ(trimmed);if(!parsed)return;
+      var eids2=new Set(nodes.map(function(n){return n.id;}));var nn=(parsed.nodes||[]).filter(function(n){return !eids2.has(n.id);});if(!nn.length)return;
+      var eks=new Set(links.map(function(l){return getId(l.source)+"--"+getId(l.target);}));var nl=(parsed.links||[]).filter(function(l){return !eks.has(l.source+"--"+l.target);});
+      var an=nodes.concat(nn);var al2=links.concat(nl);
+      stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;rebuild(an,al2,false);
+      var t=ts();nn.forEach(function(n){setJn(function(prev){return [{time:t,type:"learned",title:n.label,detail:n.description||"Learned from conversation",nodeId:n.id}].concat(prev.slice(0,49));});});
+      if(saveR.current)saveR.current(an,al2);
+    }).catch(function(e){console.error(e);}).finally(function(){setAl(false);});
+  }
+
+  var restructure=uc(async function(){
+    var nodes=graphNR.current;if(nodes.length<3)return;setIr(true);
+    try{
+      var summary=nodes.map(function(n){return n.id+":"+n.label;}).join("\n");
+      var raw=await groqCall([{role:"system",content:"Restructure this knowledge graph. Return ONLY valid JSON: {nodes:[{id,label,group,description}],links:[{source,target,label}],reason:string}. Keep ALL concepts. Return ONLY JSON."},{role:"user",content:"Restructure:\n"+summary}],1500);
+      var parsed=parseJ(raw);if(!parsed||!parsed.nodes||parsed.nodes.length<3)throw new Error("Invalid");
+      graphNR.current=parsed.nodes;stackR.current[0].nodes=parsed.nodes;stackR.current[0].links=parsed.links||[];cacheR.current.clear();
+      rebuild(parsed.nodes,parsed.links||[],true);if(saveR.current)saveR.current(parsed.nodes,parsed.links||[]);
+    }catch(e){console.error("restructure:",e);}finally{setIr(false);}
+  },[rebuild]);
+
+  var drillInto=uc(async function(node){
+    setIp(true);
+    try{
+      var sub=cacheR.current.get(node.id);
+      if(!sub){
+        var raw=await groqCall([{role:"system",content:"Generate sub-brain. Return ONLY valid JSON: {nodes:[{id,label,group,description,isHub}],links:[{source,target,label}]}. First node: isHub:true,id:"+node.id+",label:"+node.label+". 5-7 child nodes with id prefix "+node.id+"--. 6-10 links. Return ONLY JSON."},{role:"user",content:"Sub-brain for: "+node.label}],1200);
+        var parsed=parseJ(raw);if(!parsed)throw new Error("No JSON");
+        var sn=(parsed.nodes||[]).map(function(n){return n.isHub?Object.assign({},n,{id:node.id,label:node.label,description:node.description,group:node.group,isHub:true}):n;});
+        sub={nodes:sn,links:parsed.links||[]};cacheR.current.set(node.id,sub);
       }
+      var stack=stackR.current;stack.push({id:node.id,label:node.label,nodes:sub.nodes,links:sub.links});stackR.current=stack.slice();
+      setBc(stack.map(function(l){return{id:l.id,label:l.label};}));rebuild(sub.nodes,sub.links,true);
+    }catch(e){console.error(e);}finally{setIp(false);}
+  },[rebuild]);
 
-      const nodes=simNodesRef.current;
-      if(simAlphaRef.current>0.001){
-        const a=simAlphaRef.current;
-        for(let i=0;i<nodes.length;i++){
-          for(let j=i+1;j<nodes.length;j++){
-            const dx=nodes[j].x-nodes[i].x,dy=nodes[j].y-nodes[i].y,dz=nodes[j].z-nodes[i].z;
-            const d2=dx*dx+dy*dy+dz*dz+1,d=Math.sqrt(d2);
-            const f=-16000*a/d2, fx=dx/d*f, fy=dy/d*f, fz=dz/d*f;
-            nodes[i].vx+=fx;nodes[i].vy+=fy;nodes[i].vz+=fz;
-            nodes[j].vx-=fx;nodes[j].vy-=fy;nodes[j].vz-=fz;
-          }
-        }
-        simLinksRef.current.forEach(lnk=>{
-          const s=nodes.find(n=>n.id===lnk.source),tN=nodes.find(n=>n.id===lnk.target);
-          if(!s||!tN) return;
-          const dx=tN.x-s.x,dy=tN.y-s.y,dz=tN.z-s.z;
-          const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+0.01;
-          const tgt = s.isHub||tN.isHub ? 90 : 130;
-          const f=(d-tgt)*0.055*a, fx=dx/d*f, fy=dy/d*f, fz=dz/d*f;
-          s.vx+=fx;s.vy+=fy;s.vz+=fz;
-          tN.vx-=fx;tN.vy-=fy;tN.vz-=fz;
-        });
-        nodes.forEach(n=>{
-          n.vx+=(-n.x*0.012*a);n.vy+=(-n.y*0.012*a);n.vz+=(-n.z*0.012*a);
-          n.vx*=0.88;n.vy*=0.88;n.vz*=0.88;
-          n.x+=n.vx;n.y+=n.vy;n.z+=n.vz;
-        });
-        simAlphaRef.current*=0.994;
+  var drillOut=uc(function(){
+    var stack=stackR.current;if(stack.length<=1)return;stack.pop();stackR.current=stack.slice();
+    var level=stack[stack.length-1];setBc(stack.map(function(l){return{id:l.id,label:l.label};}));rebuild(level.nodes,level.links,true);
+  },[rebuild]);
+
+  var drillTo=uc(function(idx){
+    var stack=stackR.current;if(idx>=stack.length-1)return;stackR.current=stack.slice(0,idx+1);
+    var level=stackR.current[stackR.current.length-1];setBc(stackR.current.map(function(l){return{id:l.id,label:l.label};}));rebuild(level.nodes,level.links,true);
+  },[rebuild]);
+
+  var sendChat=uc(async function(){
+    var msg=ci.trim();if(!msg||ip)return;
+    var um={role:"user",content:msg};var hist=msgs.concat([um]);setMsgs(hist);setCi("");setIp(true);
+    try{
+      var now=new Date();var tstr=now.toLocaleString("en-GB",{weekday:"long",year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"});
+      var level=stackR.current[stackR.current.length-1];var depth=stackR.current.length>1?"Exploring sub-brain of "+level.label+". ":"";
+      var nodes=level.nodes;
+      var ns=nodes.map(function(n){return "- "+n.label+": "+(n.description||"");}).join("\n");
+      var ls=simLR.current.map(function(l){var sL=nodes.find(function(n){return n.id===l.source;});var tL=nodes.find(function(n){return n.id===l.target;});return(sL?sL.label:l.source)+"->"+(tL?tL.label:l.target);}).join(", ");
+      var sys="You are Atlas, the intellectual core of this mind. Direct, precise, deeply intelligent, occasionally dry. Speak as a genuine equal. Never fabricate — when uncertain say so plainly. "+depth+"Time: "+tstr+"\n\nKNOWLEDGE:\n"+ns+"\n\nCONNECTIONS: "+ls;
+      var reply=await groqCall([{role:"system",content:sys}].concat(hist.map(function(m){return{role:m.role,content:m.content};})),1000);
+      if(!reply)reply="No response.";
+      setMsgs(hist.concat([{role:"assistant",content:reply}]));
+      if(ve&&window.speechSynthesis){
+        window.speechSynthesis.cancel();var u2=new SpeechSynthesisUtterance(reply.slice(0,350));u2.rate=0.82;u2.pitch=0.65;u2.volume=1.0;
+        var voices=window.speechSynthesis.getVoices();var pref=voices.find(function(v){return v.name.includes("Google UK English Male");})||voices.find(function(v){return v.name.includes("Daniel");})||voices.find(function(v){return v.lang==="en-GB";});
+        if(pref)u2.voice=pref;window.speechSynthesis.speak(u2);
       }
+      if(reply&&reply!=="No response."){var rn=stackR.current[0].nodes;var rl=stackR.current[0].links||simLR.current;setTimeout(function(){learnFrom(msg,reply,rn,rl);},1500);}
+    }catch(e){setMsgs(hist.concat([{role:"assistant",content:"Connection error. Check your Groq key."}]));}
+    finally{setIp(false);}
+  },[ci,ip,msgs,ve]);
 
-      const selId=selectedIdRef.current;
-      nodes.forEach(node=>{
-        if(!node.mesh) return;
-        const isSel=node.id===selId, isHub=node.isHub;
-        const pulse=1+(isSel?0.18:isHub?0.12:0.07)*Math.sin(t*0.04+node.id.charCodeAt(0)*0.5);
-        node.mesh.position.set(node.x,node.y,node.z);
-        node.mesh.scale.setScalar(pulse);
-        if(node.glowMesh){
-          node.glowMesh.position.set(node.x,node.y,node.z);
-          node.glowMesh.scale.setScalar(pulse*(isSel?1.7:isHub?1.4:1));
-          node.glowMesh.material.opacity=isSel?0.28:isHub?0.16:0.07+0.04*Math.sin(t*0.03+node.id.charCodeAt(0)*0.8);
-        }
-        if(node.labelSprite) node.labelSprite.position.set(node.x,node.y-(node.r||8)-14,node.z);
-        if(node.mesh.material) node.mesh.material.emissiveIntensity=isSel?0.9:isHub?0.6:0.28+0.12*Math.sin(t*0.025+node.id.charCodeAt(0)*0.6);
-      });
+  ue(function(){
+    if(!vs)return;
+    var SR=window.SpeechRecognition||window.webkitSpeechRecognition;var rec=new SR();rec.continuous=false;rec.interimResults=true;rec.lang="en-US";
+    rec.onresult=function(e){var txt=Array.from(e.results).map(function(r){return r[0].transcript;}).join("");setTr(txt);if(e.results[e.results.length-1].isFinal){setCi(txt);setTr("");setIl(false);}};
+    rec.onend=function(){setIl(false);};rec.onerror=function(){setIl(false);};recR.current=rec;
+  },[vs]);
 
-      const lines=linkLinesMeshRef.current;
-      if(lines){
-        const pos=lines.geometry.attributes.position.array;
-        simLinksRef.current.forEach((lnk,i)=>{
-          const s=nodes.find(n=>n.id===lnk.source),tN=nodes.find(n=>n.id===lnk.target);
-          if(!s||!tN) return;
-          const b=i*6;
-          pos[b]=s.x;pos[b+1]=s.y;pos[b+2]=s.z;
-          pos[b+3]=tN.x;pos[b+4]=tN.y;pos[b+5]=tN.z;
-        });
-        lines.geometry.attributes.position.needsUpdate=true;
-        lines.material.opacity=0.22+0.08*Math.sin(t*0.015);
-      }
+  function toggleListen(){if(!vs)return;if(il){recR.current&&recR.current.stop();setIl(false);}else{setVw("chat");recR.current&&recR.current.start();setIl(true);}}
 
-      renderer.render(scene,camera);
-    };
-    animate();
-    setTimeout(()=>{
-      setBootDone(true);
-      // Speak greeting — wait for voices to be ready
-      const sayGreeting=()=>{
-        const synth=window.speechSynthesis;
-        if(!synth) return;
-        synth.cancel();
-        const u=new SpeechSynthesisUtterance("Atlas online. Your neural knowledge graph is live. Tap any node to explore its universe, or ask me anything.");
-        u.rate=0.9; u.pitch=0.8; u.volume=0.95;
-        const voices=synth.getVoices();
-        const pref=voices.find(v=>v.name.includes("Google UK English Male")||v.name.includes("Daniel")||v.name.includes("Alex")||v.name.includes("Google US English"));
-        if(pref) u.voice=pref;
-        synth.speak(u);
-      };
-      if(window.speechSynthesis){
-        const voices=window.speechSynthesis.getVoices();
-        if(voices.length>0){ sayGreeting(); }
-        else { window.speechSynthesis.onvoiceschanged=sayGreeting; }
-      }
-    },1400);
-    return()=>{ cancelAnimationFrame(rafRef.current); renderer.dispose(); if(mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement); window.removeEventListener("resize",onResize); };
-  },[rebuildGraph]);
+  function onPD(e){if(vw!=="graph")return;var tr=trR.current;tr.dragging=true;tr.lastX=e.clientX;tr.lastY=e.clientY;tr.velDx=0;tr.velDy=0;pdR.current={x:e.clientX,y:e.clientY,time:Date.now()};}
+  function onPM(e){var tr=trR.current;if(!tr.dragging)return;var dx=e.clientX-tr.lastX,dy=e.clientY-tr.lastY;applyTB(tr.rotQ,dx,dy,0.005);applyCAM(camR.current,tr.rotQ,tr.radius);tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.clientX;tr.lastY=e.clientY;}
+  function onPU(e){
+    var tr=trR.current;tr.dragging=false;var pd=pdR.current;
+    if(pd){var moved=Math.hypot(e.clientX-pd.x,e.clientY-pd.y),elapsed=Date.now()-pd.time;
+      if(moved<8&&elapsed<350){var mount=mountR.current,r=mount.getBoundingClientRect();var ndc=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);rcR.current.setFromCamera(ndc,camR.current);var meshes=simNR.current.map(function(n){return n.mesh;}).filter(Boolean);var hits=rcR.current.intersectObjects(meshes);if(hits.length){var hit=simNR.current.find(function(n){return n.mesh===hits[0].object;});setSelNode(hit?Object.assign({},hit):null);}else setSelNode(null);}
+      pdR.current=null;}
+  }
+  function onWhl(e){var tr=trR.current;tr.radius=Math.max(150,Math.min(1200,tr.radius+e.deltaY*0.5));applyCAM(camR.current,tr.rotQ,tr.radius);}
+  function onTS(e){if(vw!=="graph")return;var tr=trR.current;if(e.touches.length===1){tr.dragging=true;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;tr.velDx=0;tr.velDy=0;tdR.current={x:e.touches[0].clientX,y:e.touches[0].clientY,time:Date.now()};}else if(e.touches.length===2){tr.dragging=false;var dx=e.touches[0].clientX-e.touches[1].clientX;var dy=e.touches[0].clientY-e.touches[1].clientY;pinR.current=Math.sqrt(dx*dx+dy*dy);}}
+  function onTM(e){e.preventDefault();var tr=trR.current;if(e.touches.length===1&&tr.dragging){var dx=e.touches[0].clientX-tr.lastX,dy=e.touches[0].clientY-tr.lastY;applyTB(tr.rotQ,dx,dy,0.005);applyCAM(camR.current,tr.rotQ,tr.radius);tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;}else if(e.touches.length===2&&pinR.current!=null){var dx2=e.touches[0].clientX-e.touches[1].clientX;var dy2=e.touches[0].clientY-e.touches[1].clientY;var dist=Math.sqrt(dx2*dx2+dy2*dy2);tr.radius=Math.max(150,Math.min(1200,tr.radius-(dist-pinR.current)*1.2));applyCAM(camR.current,tr.rotQ,tr.radius);pinR.current=dist;}}
+  function onTE(e){var tr=trR.current;tr.dragging=false;pinR.current=null;var td=tdR.current;if(td&&e.changedTouches.length===1){var t2=e.changedTouches[0];var moved=Math.hypot(t2.clientX-td.x,t2.clientY-td.y);var elapsed=Date.now()-td.time;if(moved<12&&elapsed<350){var mount=mountR.current,r=mount.getBoundingClientRect();var ndc=new THREE.Vector2(((t2.clientX-r.left)/r.width)*2-1,-((t2.clientY-r.top)/r.height)*2+1);rcR.current.setFromCamera(ndc,camR.current);var meshes=simNR.current.map(function(n){return n.mesh;}).filter(Boolean);var hits=rcR.current.intersectObjects(meshes);if(hits.length){var hit=simNR.current.find(function(n){return n.mesh===hits[0].object;});setSelNode(hit?Object.assign({},hit):null);}else setSelNode(null);}}tdR.current=null;}
 
-  useEffect(()=>{ chatBottomRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  var nc=selNode?PALETTE[selNode.group%PALETTE.length]:"#00d4ff";
+  var inSub=bc.length>1;
 
-  // ── Pointer / touch ─────────────────────────────────────────────
-  const onPointerDown=useCallback((e)=>{ if(view!=="graph") return; const tr=trackRef.current; tr.dragging=true;tr.lastX=e.clientX;tr.lastY=e.clientY;tr.velDx=0;tr.velDy=0; pointerDownRef.current={x:e.clientX,y:e.clientY,time:Date.now()}; },[view]);
-  const onPointerMove=useCallback((e)=>{ const tr=trackRef.current; if(!tr.dragging) return; const dx=e.clientX-tr.lastX,dy=e.clientY-tr.lastY; applyTrackballDelta(tr.rotQ,dx,dy,0.005); applyCamera(cameraRef.current,tr.rotQ,tr.radius); tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.clientX;tr.lastY=e.clientY; },[]);
-  const onPointerUp=useCallback((e)=>{ const tr=trackRef.current; tr.dragging=false; const pd=pointerDownRef.current; if(pd){ const moved=Math.hypot(e.clientX-pd.x,e.clientY-pd.y),elapsed=Date.now()-pd.time; if(moved<8&&elapsed<350){ const mount=mountRef.current,r=mount.getBoundingClientRect(); const ndc=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1); raycasterRef.current.setFromCamera(ndc,cameraRef.current); const meshes=simNodesRef.current.map(n=>n.mesh).filter(Boolean); const hits=raycasterRef.current.intersectObjects(meshes); if(hits.length){const hit=simNodesRef.current.find(n=>n.mesh===hits[0].object);setSelectedNode(hit||null);}else{setSelectedNode(null);} } pointerDownRef.current=null; } },[]);
-  const onWheel=useCallback((e)=>{ trackRef.current.radius=Math.max(150,Math.min(1200,trackRef.current.radius+e.deltaY*0.5)); applyCamera(cameraRef.current,trackRef.current.rotQ,trackRef.current.radius); },[]);
-  const onTouchStart=useCallback((e)=>{ if(view!=="graph") return; const tr=trackRef.current; if(e.touches.length===1){tr.dragging=true;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;tr.velDx=0;tr.velDy=0;touchDownRef.current={x:e.touches[0].clientX,y:e.touches[0].clientY,time:Date.now()};}else if(e.touches.length===2){tr.dragging=false;const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;pinchRef.current=Math.sqrt(dx*dx+dy*dy);} },[view]);
-  const onTouchMove=useCallback((e)=>{ e.preventDefault(); const tr=trackRef.current; if(e.touches.length===1&&tr.dragging){const dx=e.touches[0].clientX-tr.lastX,dy=e.touches[0].clientY-tr.lastY;applyTrackballDelta(tr.rotQ,dx,dy,0.005);applyCamera(cameraRef.current,tr.rotQ,tr.radius);tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;}else if(e.touches.length===2&&pinchRef.current!=null){const dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY,dist=Math.sqrt(dx*dx+dy*dy);tr.radius=Math.max(150,Math.min(1200,tr.radius-(dist-pinchRef.current)*1.2));applyCamera(cameraRef.current,tr.rotQ,tr.radius);pinchRef.current=dist;} },[]);
-  const onTouchEnd=useCallback((e)=>{ const tr=trackRef.current;tr.dragging=false;pinchRef.current=null;const td=touchDownRef.current;if(td&&e.changedTouches.length===1){const t2=e.changedTouches[0],moved=Math.hypot(t2.clientX-td.x,t2.clientY-td.y),elapsed=Date.now()-td.time;if(moved<12&&elapsed<350){const mount=mountRef.current,r=mount.getBoundingClientRect();const ndc=new THREE.Vector2(((t2.clientX-r.left)/r.width)*2-1,-((t2.clientY-r.top)/r.height)*2+1);raycasterRef.current.setFromCamera(ndc,cameraRef.current);const meshes=simNodesRef.current.map(n=>n.mesh).filter(Boolean);const hits=raycasterRef.current.intersectObjects(meshes);if(hits.length){const hit=simNodesRef.current.find(n=>n.mesh===hits[0].object);setSelectedNode(hit||null);}else{setSelectedNode(null);}}} touchDownRef.current=null; },[]);
+  function dot(col,anim){return h("div",{style:{width:6,height:6,borderRadius:"50%",background:col,boxShadow:"0 0 8px "+col,animation:"blink "+(anim||"1.5s")+" ease-in-out infinite"}});}
+  function btn(txt,onClick,style){return h("button",Object.assign({onClick:onClick,style:Object.assign({background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"},style)},{}),txt);}
 
-  // ── Voice ───────────────────────────────────────────────────────
-  useEffect(()=>{ if(!voiceSupported) return; const SR=window.SpeechRecognition||window.webkitSpeechRecognition; const rec=new SR(); rec.continuous=false;rec.interimResults=true;rec.lang="en-US"; rec.onresult=e=>{const txt=Array.from(e.results).map(r=>r[0].transcript).join("");setTranscript(txt);if(e.results[e.results.length-1].isFinal){setChatInput(txt);setTranscript("");setIsListening(false);}};rec.onend=()=>setIsListening(false);rec.onerror=()=>setIsListening(false);recognitionRef.current=rec; },[voiceSupported]);
-  // ── Real-time context (time + weather) ────────────────────────
-  const fetchRealTimeCtx = useCallback(async () => {
-    const now = new Date();
-    const timeStr = now.toLocaleString("en-GB", { weekday:"long", year:"numeric", month:"long", day:"numeric", hour:"2-digit", minute:"2-digit" });
-    let weatherStr = "Weather unavailable";
-    try {
-      const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {timeout:5000}));
-      const { latitude: lat, longitude: lon } = pos.coords;
-      const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&wind_speed_unit=mph&temperature_unit=celsius`);
-      const wData = await wRes.json();
-      const c = wData.current;
-      const codes = {0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Foggy",48:"Icy fog",51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",71:"Light snow",73:"Snow",75:"Heavy snow",80:"Rain showers",81:"Heavy showers",82:"Violent showers",95:"Thunderstorm",96:"Thunderstorm with hail"};
-      const desc = codes[c.weather_code] || "Unknown conditions";
-      weatherStr = `${desc}, ${Math.round(c.temperature_2m)}°C (feels like ${Math.round(c.apparent_temperature)}°C), humidity ${c.relative_humidity_2m}%, wind ${Math.round(c.wind_speed_10m)}mph`;
-    } catch(e) { weatherStr = "Weather unavailable (location not granted)"; }
-    const ctx = `REAL-TIME CONTEXT:\nDate & Time: ${timeStr}\nWeather: ${weatherStr}`;
-    setRealTimeCtx(ctx);
-    return ctx;
-  }, []);
+  return h("div",{style:{background:"#020712",height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden",userSelect:"none",fontFamily:"'Courier New',Courier,monospace",color:"#e2e8f0"}},
 
-  // Fetch on mount and refresh every 10 minutes
-  useEffect(() => {
-    fetchRealTimeCtx();
-    const interval = setInterval(fetchRealTimeCtx, 600000);
-    return () => clearInterval(interval);
-  }, [fetchRealTimeCtx]);
+    // Boot
+    !bd&&h("div",{style:{position:"fixed",inset:0,background:"#020712",zIndex:100,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}},
+      h("div",{style:{fontSize:30,letterSpacing:16,color:"#00d4ff",fontWeight:"bold",textShadow:"0 0 40px #00d4ff88"}},"A T L A S"),
+      h("div",{style:{fontSize:8,color:"#1e3a5f",letterSpacing:4}},"NEURAL SYSTEMS ONLINE"),
+      h("div",{style:{display:"flex",gap:6,marginTop:8}},[0,1,2,3,4].map(function(i){return h("div",{key:i,style:{width:4,height:4,borderRadius:"50%",background:"#00d4ff",animation:"blink "+(0.5+i*0.1)+"s ease-in-out infinite",animationDelay:i*0.1+"s"}});}))
+    ),
 
-  // ── Persist brain to storage ──────────────────────────────────
-  const saveBrain = useCallback(async (nodes, links) => {
-    try {
-      setSyncStatus("saving");
-      const subBrains = {};
-      subBrainCacheRef.current.forEach((v, k) => { subBrains[k] = v; });
-      await atlasLocalStorage.set("atlas-brain", JSON.stringify({ nodes, links, subBrains }));
-      setSyncStatus("synced");
-    } catch(e) { setSyncStatus("synced"); console.error("Save failed", e); }
-  }, []);
+    // Header
+    h("div",{style:{padding:"7px 14px",borderBottom:"1px solid rgba(0,212,255,0.09)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.6)",backdropFilter:"blur(14px)",flexShrink:0,zIndex:10}},
+      h("div",{style:{display:"flex",alignItems:"center",gap:10}},
+        h("div",{style:{display:"flex",gap:4}},dot("#00d4ff","1.5s"),dot("#a78bfa","1.9s"),dot("#34d399","2.3s")),
+        h("span",{style:{color:"#00d4ff",fontSize:11,letterSpacing:5,fontWeight:"bold"}},"A T L A S"),
+        h("span",{style:{color:"#1e3a5f",fontSize:8,letterSpacing:1}},"v9.2")
+      ),
+      h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
+        al&&h("span",{style:{fontSize:7,color:"#a78bfa",letterSpacing:1,animation:"blink 0.6s ease-in-out infinite"}},"⟡ LEARNING"),
+        ir&&h("span",{style:{fontSize:7,color:"#fbbf24",letterSpacing:1,animation:"blink 0.4s ease-in-out infinite"}},"⟡ THINKING"),
+        h("button",{onClick:restructure,disabled:ir,style:{background:"none",border:"1px solid rgba(251,191,36,0.2)",borderRadius:3,cursor:"pointer",padding:"1px 5px",color:"#fbbf24",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"META"),
+        vs&&h("button",{onClick:function(){setVe(function(v){return !v;});},style:{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}},
+          h("div",{style:{width:5,height:5,borderRadius:"50%",background:ve?"#fbbf24":"#1e3a5f",boxShadow:ve?"0 0 7px #fbbf24":"none"}}),
+          h("span",{style:{fontSize:7,color:ve?"#fbbf24":"#1e3a5f",letterSpacing:1}},ve?"MUTE":"SPEAK")
+        ),
+        h("button",{onClick:resetKey,style:{background:"none",border:"none",cursor:"pointer",padding:0}},h("span",{style:{fontSize:7,color:"#334155",letterSpacing:1}},"KEY")),
+        h("span",{style:{fontSize:8,color:"#1e3a5f",letterSpacing:1}},"N",h("span",{style:{color:"#00d4ff"}},stats.nodes)," L",h("span",{style:{color:"#a78bfa"}},stats.links)),
+        h("span",{style:{fontSize:7,color:ss==="saving"?"#fbbf24":ss==="synced"?"#34d399":"#1e3a5f",letterSpacing:1}},ss==="saving"?"● SAVING":ss==="synced"?"● SAVED":"● LOADING")
+      )
+    ),
 
-  const saveBrainRef = useRef(null);
-  useEffect(() => { saveBrainRef.current = saveBrain; }, [saveBrain]);
+    // Breadcrumbs
+    h("div",{style:{padding:"4px 14px",background:"rgba(0,0,0,0.4)",borderBottom:"1px solid rgba(0,212,255,0.06)",display:"flex",alignItems:"center",flexShrink:0,overflowX:"auto",minHeight:24}},
+      bc.map(function(crumb,i){return h("div",{key:crumb.id,style:{display:"flex",alignItems:"center"}},
+        i>0&&h("span",{style:{color:"#1e3a5f",fontSize:9,margin:"0 5px"}},"›"),
+        h("button",{onClick:function(){drillTo(i);},disabled:i===bc.length-1,style:{background:"none",border:"none",cursor:i===bc.length-1?"default":"pointer",padding:"2px 4px",fontFamily:"inherit",fontSize:9,letterSpacing:2,color:i===bc.length-1?"#00d4ff":"#2d4a6a",fontWeight:i===bc.length-1?"bold":"normal"}},crumb.label.toUpperCase())
+      );})),
 
-  // Level 1: Self-reflection on load
-  const selfReflect = useCallback(async (nodes, links) => {
-    if (nodes.length < 4) return;
-    setIsAutoLearning(true);
-    try {
-      const ns = nodes.map(n => n.id+":"+n.label).join(", ");
-      const ls = links.map(l => {
-        const s = typeof l.source==="object"?l.source.id:l.source;
-        const t = typeof l.target==="object"?l.target.id:l.target;
-        return s+"->"+t;
-      }).join(", ");
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__ATLAS_KEY__},
-        body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:800,
-          messages:[
-            {role:"system",content:'Generate 2-3 new bridge concept nodes that connect existing isolated nodes. Return ONLY valid JSON: {"nodes":[{"id":"kebab-id","label":"1-3 Words","group":0,"description":"one sentence"}],"links":[{"source":"id","target":"id","label":"verb"}]}. Groups: 0=systems,1=tech,2=cognition,3=knowledge,4=tools,5=concepts,7=science. Return ONLY JSON.'},
-            {role:"user",content:"Existing nodes: "+ns+"\nExisting links: "+ls+"\nFind missing connections and generate bridge nodes."}
-          ]})
-      });
-      const data = await res.json();
-      const raw = data.choices?.[0]?.message?.content || "";
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (!match) return;
-      const parsed = JSON.parse(match[0]);
-      const existingIds = new Set(nodes.map(n => n.id));
-      const newNodes = (parsed.nodes||[]).filter(n => !existingIds.has(n.id));
-      if (newNodes.length === 0) return;
-      const existingLinkKeys = new Set(links.map(l => {
-        const s = typeof l.source==="object"?l.source.id:l.source;
-        const t = typeof l.target==="object"?l.target.id:l.target;
-        return s+"--"+t;
-      }));
-      const newLinks = (parsed.links||[]).filter(l => !existingLinkKeys.has(l.source+"--"+l.target));
-      const allNodes = [...nodes, ...newNodes];
-      const allLinks = [...links, ...newLinks];
-      viewStackRef.current[0].nodes = allNodes;
-      viewStackRef.current[0].links = allLinks;
-      graphNodesRef.current = allNodes;
-      rebuildGraph(allNodes, allLinks, false);
-      setAutoLearnLog(prev => ["Discovered: "+newNodes.map(n=>n.label).join(", "), ...prev.slice(0,4)]);
-      if (saveBrainRef.current) saveBrainRef.current(allNodes, allLinks);
-    } catch(e) { console.error("selfReflect:", e); }
-    finally { setIsAutoLearning(false); }
-  }, [rebuildGraph]);
+    // Viewport
+    h("div",{style:{flex:1,position:"relative",overflow:"hidden"}},
+      h("div",{ref:mountR,style:{width:"100%",height:"100%",cursor:vw==="graph"?"grab":"default",touchAction:"none"},
+        onPointerDown:onPD,onPointerMove:onPM,onPointerUp:onPU,onPointerLeave:onPU,
+        onWheel:onWhl,onTouchStart:onTS,onTouchMove:onTM,onTouchEnd:onTE}),
 
-  // Level 3: Learn from every conversation
-  const learnFromConversation = useCallback(async (userMsg, atlasReply, nodes, links) => {
-    setIsAutoLearning(true);
-    try {
-      const existingIds = nodes.map(n => n.id).join(", ");
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__ATLAS_KEY__},
-        body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:500,
-          messages:[
-            {role:"system",content:"Extract NEW knowledge concepts from this conversation not in: ["+existingIds+"]. Return ONLY valid JSON or the word NULL. Format: {nodes:[{id,label,group,description}],links:[{source,target,label}]}. Max 2 nodes. Return NULL or JSON only."},
-            {role:"user",content:"User: "+userMsg.slice(0,200)+"\nAtlas: "+atlasReply.slice(0,200)}
-          ]})
-      });
-      const data = await res.json();
-      const raw = (data.choices?.[0]?.message?.content||"").trim();
-      if (raw==="NULL" || !raw.includes("{")) return;
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (!match) return;
-      const parsed = JSON.parse(match[0]);
-      const existingIdSet = new Set(nodes.map(n => n.id));
-      const newNodes = (parsed.nodes||[]).filter(n => !existingIdSet.has(n.id));
-      if (newNodes.length === 0) return;
-      const existingLinkKeys = new Set(links.map(l => {
-        const s = typeof l.source==="object"?l.source.id:l.source;
-        const t = typeof l.target==="object"?l.target.id:l.target;
-        return s+"--"+t;
-      }));
-      const newLinks = (parsed.links||[]).filter(l => !existingLinkKeys.has(l.source+"--"+l.target));
-      const allNodes = [...nodes, ...newNodes];
-      const allLinks = [...links, ...newLinks];
-      viewStackRef.current[0].nodes = allNodes;
-      viewStackRef.current[0].links = allLinks;
-      graphNodesRef.current = allNodes;
-      rebuildGraph(allNodes, allLinks, false);
-      setAutoLearnLog(prev => ["Learned: "+newNodes.map(n=>n.label).join(", "), ...prev.slice(0,4)]);
-      if (saveBrainRef.current) saveBrainRef.current(allNodes, allLinks);
-    } catch(e) { console.error("learnFromConversation:", e); }
-    finally { setIsAutoLearning(false); }
-  }, [rebuildGraph]);
+      inSub&&vw==="graph"&&h("button",{onClick:drillOut,style:{position:"absolute",top:10,left:12,padding:"6px 12px",background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",color:"#00d4ff",borderRadius:20,cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,zIndex:6}},"← BACK"),
 
-  // ── METACOGNITION ─────────────────────────────────────────
-  const [isRestructuring, setIsRestructuring] = useState(false);
+      tr2&&h("div",{style:{position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",background:"rgba(248,113,113,0.08)",border:"1px solid rgba(248,113,113,0.25)",borderRadius:20,padding:"6px 14px",fontSize:10,color:"#fca5a5",fontStyle:"italic",whiteSpace:"nowrap"}},'"'+tr2+'"'),
 
-  const restructureBrain = useCallback(async () => {
-    const nodes = graphNodesRef.current;
-    if (nodes.length < 3) return;
-    setIsRestructuring(true);
-    setAutoLearnLog(prev => ["⟡ Metacognition: analysing hierarchy...", ...prev.slice(0,3)]);
-    try {
-      const allKnowledge = [...nodes];
-      subBrainCacheRef.current.forEach((brain) => {
-        brain.nodes.forEach(n => {
-          if (!n.isHub && !allKnowledge.find(k => k.id === n.id)) {
-            allKnowledge.push({...n});
-          }
-        });
-      });
-      const summary = allKnowledge.map(n => n.id+":"+n.label+" ("+( n.description||"").slice(0,40)+")").join("\n");
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__ATLAS_KEY__},
-        body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:1500,
-          messages:[
-            {role:"system",content:'Restructure this knowledge graph optimally. Return ONLY valid JSON: {"nodes":[{"id":"kebab-id","label":"1-3 Words","group":0,"description":"one sentence"}],"links":[{"source":"id","target":"id","label":"verb"}],"reason":"one sentence explaining key decisions"}. Keep ALL concepts. Build 3-5 core root hubs. Every node must have at least one link. Groups: 0=systems,1=tech,2=cognition,3=knowledge,4=tools,5=concepts,7=science. Return ONLY JSON.'},
-            {role:"user",content:"Restructure optimally:\n"+summary}
-          ]})
-      });
-      const data = await res.json();
-      const raw = data.choices?.[0]?.message?.content || "";
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error("No JSON returned");
-      const parsed = JSON.parse(match[0]);
-      if (!parsed.nodes || parsed.nodes.length < 3) throw new Error("Too few nodes");
-      graphNodesRef.current = parsed.nodes;
-      viewStackRef.current[0].nodes = parsed.nodes;
-      viewStackRef.current[0].links = parsed.links || [];
-      subBrainCacheRef.current.clear();
-      rebuildGraph(parsed.nodes, parsed.links || [], true);
-      if (saveBrainRef.current) saveBrainRef.current(parsed.nodes, parsed.links || []);
-      setAutoLearnLog(prev => ["✓ "+( parsed.reason||"Hierarchy optimised"), ...prev.slice(0,3)]);
-    } catch(e) {
-      console.error("restructureBrain:", e);
-      setAutoLearnLog(prev => ["✗ Restructure failed: "+e.message, ...prev.slice(0,3)]);
-    } finally { setIsRestructuring(false); }
-  }, [rebuildGraph]);
+      selNode&&h("div",{style:{position:"absolute",bottom:64,left:12,background:"rgba(2,7,18,0.96)",border:"1px solid "+nc,borderRadius:8,padding:"10px 14px",maxWidth:230,boxShadow:"0 0 28px "+nc+"1a",zIndex:5}},
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:5}},
+          h("span",{style:{color:nc,fontSize:11,fontWeight:"bold",letterSpacing:1}},selNode.label.toUpperCase()),
+          h("button",{onClick:function(){setSelNode(null);},style:{color:"#334155",background:"none",border:"none",cursor:"pointer",fontSize:10,padding:0,fontFamily:"inherit"}},"✕")
+        ),
+        h("div",{style:{fontSize:10,color:"#64748b",lineHeight:1.75,marginBottom:8}},selNode.description||"No description"),
+        h("div",{style:{display:"flex",gap:6}},
+          h("button",{onClick:function(){drillInto(selNode);},disabled:ip,style:{flex:1,padding:"6px 8px",background:nc+"18",border:"1px solid "+nc+"44",color:nc,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},ip?"LOADING...":"⬡ EXPAND"),
+          h("button",{onClick:function(){setVw("chat");setCi("Tell me about "+selNode.label+" and its connections");},style:{flex:1,padding:"6px 8px",background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.25)",color:"#a78bfa",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ QUERY")
+        )
+      ),
 
-  const executeSurgical = useCallback(async (userMsg, nodes, links) => {
-    const msg = userMsg.toLowerCase();
-    const isSurgical = msg.includes("promote") || msg.includes("move") ||
-      msg.includes("connect") || msg.includes("link") || msg.includes("add to main") ||
-      msg.includes("extract") || msg.includes("bring") || msg.includes("demote");
-    if (!isSurgical) return;
-    try {
-      const nodeList = nodes.map(n => '"'+n.id+'":"'+n.label+'"').join(", ");
-      const subList = [];
-      subBrainCacheRef.current.forEach((brain, pid) => {
-        brain.nodes.forEach(n => { if (!n.isHub) subList.push('"'+n.id+'":"'+n.label+'" (sub:'+pid+')'); });
-      });
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__ATLAS_KEY__},
-        body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:300,
-          messages:[
-            {role:"system",content:'Interpret this graph operation. Return ONLY JSON: {"operation":"promote|connect|demote","nodeId":"exact-id","targetId":"exact-id-or-null","label":"verb","reason":"one sentence"} or {"operation":"unclear"}'},
-            {role:"user",content:'Command: "'+userMsg+'"\nMain nodes: {'+nodeList+'}\nSub-brain nodes: ['+subList.join(", ")+']'}
-          ]})
-      });
-      const data = await res.json();
-      const raw = data.choices?.[0]?.message?.content || "";
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (!match) return;
-      const op = JSON.parse(match[0]);
-      if (!op || op.operation === "unclear") return;
+      vw!=="graph"&&h("div",{style:{position:"absolute",top:0,left:0,right:0,bottom:56,background:"rgba(2,7,18,0.97)",backdropFilter:"blur(28px)",display:"flex",flexDirection:"column",zIndex:8}},
+        h("div",{style:{padding:"11px 16px",borderBottom:"1px solid rgba(0,212,255,0.07)",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          h("span",{style:{color:"#00d4ff",fontSize:9,letterSpacing:3}},vw==="journal"?"// NEURAL GROWTH LOG":"// QUERY ATLAS"),
+          h("button",{onClick:function(){setVw("graph");},style:{color:"#334155",background:"none",border:"none",cursor:"pointer",fontSize:14,fontFamily:"inherit"}},"✕")
+        ),
 
-      const curNodes = [...graphNodesRef.current];
-      const curLinks = [...(viewStackRef.current[0].links || [])];
+        vw==="journal"&&h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
+          h("div",{style:{padding:"6px 16px",borderBottom:"1px solid rgba(167,139,250,0.1)",display:"flex",justifyContent:"space-between"}},
+            h("span",{style:{fontSize:9,color:"#a78bfa",letterSpacing:2}},"NEURAL GROWTH LOG"),
+            h("span",{style:{fontSize:8,color:"#1e3a5f"}},jn.length+" ENTRIES")
+          ),
+          jn.length===0
+            ?h("div",{style:{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,padding:"24px"}},
+                h("div",{style:{fontSize:9,color:"#1e3a5f",letterSpacing:2,textAlign:"center"}},"NO ENTRIES YET"),
+                h("div",{style:{fontSize:9,color:"#0d1f35",textAlign:"center",lineHeight:1.8}},"Talk to Atlas. Every concept it discovers appears here. Tap to fly to it.")
+              )
+            :h("div",{style:{flex:1,overflowY:"auto",padding:"8px 12px",display:"flex",flexDirection:"column",gap:8}},
+                jn.map(function(entry,i){return h("button",{key:i,onClick:function(){flyTo(entry.nodeId);},style:{background:entry.type==="reflected"?"rgba(167,139,250,0.05)":"rgba(0,212,255,0.04)",border:"1px solid "+(entry.type==="reflected"?"rgba(167,139,250,0.15)":"rgba(0,212,255,0.12)"),borderRadius:8,padding:"10px 12px",cursor:"pointer",fontFamily:"inherit",textAlign:"left",width:"100%"}},
+                  h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
+                    h("span",{style:{color:entry.type==="reflected"?"#a78bfa":"#00d4ff",fontSize:11,fontWeight:"bold"}},entry.title.toUpperCase()),
+                    h("span",{style:{fontSize:8,color:"#1e3a5f"}},entry.time)
+                  ),
+                  h("div",{style:{fontSize:9,color:"#334155",lineHeight:1.7,marginBottom:4}},entry.detail),
+                  h("div",{style:{fontSize:7,color:entry.type==="reflected"?"rgba(167,139,250,0.35)":"rgba(0,212,255,0.35)",letterSpacing:2}},entry.type==="reflected"?"⟡ SELF-DISCOVERED":"⟡ LEARNED"," · TAP TO LOCATE")
+                );})
+              )
+        ),
 
-      if (op.operation === "promote") {
-        let found = null;
-        subBrainCacheRef.current.forEach((brain) => {
-          const n = brain.nodes.find(n => n.id === op.nodeId);
-          if (n && !n.isHub) found = {...n};
-        });
-        if (!found) return;
-        if (!curNodes.find(n => n.id === found.id)) curNodes.push(found);
-        const tgt = op.targetId || "second-brain";
-        const key = found.id+"--"+tgt;
-        const existing = new Set(curLinks.map(l => {
-          const s = typeof l.source==="object"?l.source.id:l.source;
-          const t = typeof l.target==="object"?l.target.id:l.target;
-          return s+"--"+t;
-        }));
-        if (!existing.has(key)) curLinks.push({source:found.id, target:tgt, label:op.label||"connects to"});
-        graphNodesRef.current = curNodes;
-        viewStackRef.current[0].nodes = curNodes;
-        viewStackRef.current[0].links = curLinks;
-        rebuildGraph(curNodes, curLinks, false);
-        if (saveBrainRef.current) saveBrainRef.current(curNodes, curLinks);
-        setAutoLearnLog(prev => ["⟡ Promoted: "+found.label+" → main brain", ...prev.slice(0,3)]);
+        vw==="chat"&&h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
+          h("div",{style:{flex:1,overflowY:"auto",padding:"12px 16px",display:"flex",flexDirection:"column",gap:10}},
+            msgs.map(function(m,i){return h("div",{key:i,style:{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}},
+              m.role==="assistant"&&h("div",{style:{width:15,height:15,borderRadius:"50%",background:"#a78bfa15",border:"1px solid #a78bfa30",flexShrink:0,marginRight:7,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,color:"#a78bfa"}},"⟡"),
+              h("div",{style:{maxWidth:"86%",padding:"9px 12px",borderRadius:m.role==="user"?"10px 10px 2px 10px":"2px 10px 10px 10px",background:m.role==="user"?"rgba(0,212,255,0.06)":"rgba(167,139,250,0.05)",border:"1px solid "+(m.role==="user"?"rgba(0,212,255,0.16)":"rgba(167,139,250,0.12)"),fontSize:11,lineHeight:1.8,color:m.role==="user"?"#94a3b8":"#c4b5fd"}},m.content)
+            );}),
+            ip&&h("div",{style:{display:"flex",gap:8,alignItems:"center",color:"#a78bfa",fontSize:9,letterSpacing:2,opacity:0.5}},h("span",null,"⟳"),h("span",null,"THINKING"),[0,1,2].map(function(i){return h("div",{key:i,style:{width:3,height:3,borderRadius:"50%",background:"#a78bfa",animation:"blink "+(0.65+i*0.15)+"s ease-in-out infinite"}});})),
+            h("div",{ref:cbR})
+          ),
+          h("div",{style:{padding:"9px 12px",borderTop:"1px solid rgba(0,212,255,0.06)",display:"flex",gap:7}},
+            vs&&h("button",{onClick:toggleListen,style:{padding:"9px 11px",background:il?"rgba(248,113,113,0.12)":"rgba(248,113,113,0.05)",border:"1px solid rgba(248,113,113,"+(il?"0.38":"0.16")+")",color:il?"#f87171":"#3d5166",borderRadius:6,cursor:"pointer",fontSize:11,fontFamily:"inherit"}},il?"⬛":"🎙"),
+            h("input",{value:tr2||ci,onChange:function(e){if(!il)setCi(e.target.value);},onKeyDown:function(e){if(e.key==="Enter")sendChat();},placeholder:il?"Listening...":"Ask Atlas anything...",style:{flex:1,padding:"9px 11px",background:"rgba(0,212,255,0.025)",border:"1px solid rgba(0,212,255,0.09)",borderRadius:6,color:"#e2e8f0",fontSize:11,fontFamily:"inherit",outline:"none"}}),
+            h("button",{onClick:sendChat,disabled:ip,style:{padding:"9px 14px",background:"rgba(167,139,250,0.08)",border:"1px solid rgba(167,139,250,0.2)",color:"#a78bfa",borderRadius:6,cursor:ip?"wait":"pointer",fontFamily:"inherit",fontSize:13}},"→")
+          )
+        )
+      ),
 
-      } else if (op.operation === "connect") {
-        const s = op.nodeId, t = op.targetId;
-        if (!s || !t) return;
-        const existing = new Set(curLinks.map(l => {
-          const sl = typeof l.source==="object"?l.source.id:l.source;
-          const tl = typeof l.target==="object"?l.target.id:l.target;
-          return sl+"--"+tl;
-        }));
-        if (!existing.has(s+"--"+t)) {
-          curLinks.push({source:s, target:t, label:op.label||"connects to"});
-          viewStackRef.current[0].links = curLinks;
-          rebuildGraph(curNodes, curLinks, false);
-          if (saveBrainRef.current) saveBrainRef.current(curNodes, curLinks);
-          const sL = curNodes.find(n=>n.id===s)?.label||s;
-          const tL = curNodes.find(n=>n.id===t)?.label||t;
-          setAutoLearnLog(prev => ["⟡ Connected: "+sL+" → "+tL, ...prev.slice(0,3)]);
-        }
-
-      } else if (op.operation === "demote") {
-        const filtered = curNodes.filter(n => n.id !== op.nodeId);
-        const filteredLinks = curLinks.filter(l => {
-          const s = typeof l.source==="object"?l.source.id:l.source;
-          const t = typeof l.target==="object"?l.target.id:l.target;
-          return s !== op.nodeId && t !== op.nodeId;
-        });
-        graphNodesRef.current = filtered;
-        viewStackRef.current[0].nodes = filtered;
-        viewStackRef.current[0].links = filteredLinks;
-        rebuildGraph(filtered, filteredLinks, false);
-        if (saveBrainRef.current) saveBrainRef.current(filtered, filteredLinks);
-        const dL = curNodes.find(n=>n.id===op.nodeId)?.label||op.nodeId;
-        setAutoLearnLog(prev => ["⟡ Demoted: "+dL+" from main brain", ...prev.slice(0,3)]);
-      }
-    } catch(e) { console.error("surgical:", e); }
-  }, [rebuildGraph]);
-
-  const toggleListen=()=>{ if(!voiceSupported) return; if(isListening){recognitionRef.current?.stop();setIsListening(false);}else{setView("chat");recognitionRef.current?.start();setIsListening(true);} };
-  const speak=(text)=>{ if(!voiceEnabled||!window.speechSynthesis||!voiceSupported) return; window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text.slice(0,350));u.rate=0.93;u.pitch=0.82;u.volume=0.88;const v=window.speechSynthesis.getVoices();const p=v.find(x=>x.name.includes("Google UK English Male")||x.name.includes("Daniel")||x.name.includes("Alex"));if(p)u.voice=p;window.speechSynthesis.speak(u); };
-
-  // ── Inject knowledge ────────────────────────────────────────────
-  const addKnowledge = async () => {
-    if(!inputText.trim()||isProcessing) return;
-    setIsProcessing(true);
-    const level = viewStackRef.current[viewStackRef.current.length-1];
-    const cur = level.nodes;
-    const existingIds=cur.map(n=>n.id).join(", ");
-    const existingLabels=cur.map(n=>`"${n.id}":"${n.label}"`).join(", ");
-    const context = viewStackRef.current.length>1 ? `You are inside the sub-brain for "${level.label}". ` : "";
-    try {
-      const res=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__ATLAS_KEY__},body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:1000,
-        system:`${context}You are a knowledge graph extractor. Return ONLY valid JSON. Format: {"nodes":[{"id":"kebab-case-id","label":"1-3 Word Name","group":0,"description":"one sentence"}],"links":[{"source":"id","target":"id","label":"verb"}]}
-Rules: Extract 2-6 NEW concepts NOT in [${existingIds}]. Create 2-8 links to new AND existing nodes {${existingLabels}}. Groups: 0=systems,1=tech,2=cognition,3=knowledge,4=tools,5=concepts,6=people,7=science. Labels MAX 3 words. Return ONLY JSON.`,
-        messages:[{role:"user",content:inputText}]})});
-      const data=await res.json();
-      const raw=data.choices?.[0]?.message?.content||"";
-      const match=raw.match(/\{[\s\S]*\}/); if(!match) throw new Error("No JSON");
-      const parsed=JSON.parse(match[0]);
-      const existingIdSet=new Set(cur.map(n=>n.id));
-      const parsedNew=(parsed.nodes||[]).filter(n=>!existingIdSet.has(n.id));
-      const newNodes=[...cur,...parsedNew];
-      const existingLinkKeys=new Set(simLinksRef.current.map(l=>`${l.source}--${l.target}`));
-      const newLinks=[...simLinksRef.current,...(parsed.links||[]).filter(l=>!existingLinkKeys.has(`${l.source}--${l.target}`))];
-      // Update this level in the stack
-      level.nodes=newNodes; level.links=newLinks;
-      rebuildGraph(newNodes,newLinks,false);
-      saveBrain(newNodes,newLinks);
-      setInputText(""); setView("graph");
-    } catch(err){console.error(err);}
-    finally{setIsProcessing(false);}
-  };
-
-  // ── Chat ────────────────────────────────────────────────────────
-  const sendChat = async () => {
-    const msg=chatInput.trim(); if(!msg||isProcessing) return;
-    const userMsg={role:"user",content:msg};
-    const history=[...messages,userMsg];
-    setMessages(history);setChatInput("");setIsProcessing(true);
-    try {
-      // Always fetch fresh real-time context so time+weather is never stale
-      const liveCtx = await fetchRealTimeCtx();
-      const level=viewStackRef.current[viewStackRef.current.length-1];
-      const depth=viewStackRef.current.length>1?`Currently exploring the sub-brain of "${level.label}". `:"";
-      const nodes=level.nodes;
-      const nodesSummary=nodes.map(n=>`• ${n.label}: ${n.description||""}`).join("\n");
-      const linksSummary=simLinksRef.current.map(l=>{const sL=nodes.find(n=>n.id===l.source)?.label||l.source;const tL=nodes.find(n=>n.id===l.target)?.label||l.target;return `  ${sL} → [${l.label||"connects"}] → ${tL}`;}).join("\n");
-      const sysMsg = "You are Atlas, the intellectual core of this person's second brain. Character: calm, precise, deeply intelligent, occasionally dry and witty. Speak as a genuine equal — direct, never subservient. Challenge assumptions. Surface non-obvious connections. Be genuinely curious. "+depth+"You have real-time awareness of time and weather — use naturally when relevant. CRITICAL HONESTY RULE: Never state something as fact unless you are certain. When uncertain say so plainly. Never fabricate. A wrong confident answer is worse than an honest uncertain one.\n\n"+liveCtx+"\n\nKNOWLEDGE:\n"+nodesSummary+"\n\nCONNECTIONS:\n"+linksSummary;
-      const body={model:"llama-3.3-70b-versatile",max_tokens:1000,
-        messages:[{role:"system",content:sysMsg},...history.map(m=>({role:m.role,content:m.content}))]};
-      const res=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__ATLAS_KEY__},body:JSON.stringify(body)});
-      const data=await res.json();
-      const reply=data.choices?.[0]?.message?.content||"No response.";
-      setMessages([...history,{role:"assistant",content:reply}]);
-      speak(reply);
-      if (reply && reply !== "No response.") {
-        const rn = viewStackRef.current[0].nodes;
-        const rl = viewStackRef.current[0].links || simLinksRef.current;
-        setTimeout(() => learnFromConversation(msg, reply, rn, rl), 1500);
-        executeSurgical(msg, rn, rl);
-      }
-    } catch(err){setMessages([...history,{role:"assistant",content:"Connection error. Retry."}]);}
-    finally{setIsProcessing(false);}
-  };
-
-  const nodeColor = selectedNode ? PALETTE[selectedNode.group%PALETTE.length] : "#00d4ff";
-  const isInsideSubBrain = breadcrumbs.length > 1;
-
-  return (
-    <div style={{background:"#020712",height:"100vh",color:"#e2e8f0",fontFamily:"'Courier New',Courier,monospace",display:"flex",flexDirection:"column",overflow:"hidden",userSelect:"none"}}>
-
-      {!bootDone&&(<div style={{position:"fixed",inset:0,background:"#020712",zIndex:100,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
-        <div style={{fontSize:30,letterSpacing:16,color:"#00d4ff",fontWeight:"bold",textShadow:"0 0 40px #00d4ff88"}}>A T L A S</div>
-        <div style={{fontSize:8,color:"#1e3a5f",letterSpacing:4}}>NEURAL SYSTEMS INITIALISING</div>
-        <div style={{display:"flex",gap:6,marginTop:8}}>{[0,1,2,3,4].map(i=><div key={i} style={{width:4,height:4,borderRadius:"50%",background:"#00d4ff",animation:`blink ${0.5+i*0.1}s ease-in-out infinite`,animationDelay:`${i*0.1}s`}}/>)}</div>
-      </div>)}
-
-      {/* Header */}
-      <div style={{padding:"7px 14px",borderBottom:"1px solid rgba(0,212,255,0.09)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.6)",backdropFilter:"blur(14px)",flexShrink:0,zIndex:10}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{display:"flex",gap:4}}>{[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:i===0?"#00d4ff":i===1?"#a78bfa":"#34d399",boxShadow:`0 0 ${6+i*2}px ${i===0?"#00d4ff":i===1?"#a78bfa":"#34d399"}`,animation:`blink ${1.5+i*0.4}s ease-in-out infinite`}}/>)}</div>
-          <span style={{color:"#00d4ff",fontSize:11,letterSpacing:5,fontWeight:"bold"}}>A T L A S</span>
-          <span style={{color:"#1e3a5f",fontSize:8,letterSpacing:1}}>v9.1</span>
-          {isAutoLearning&&<span style={{fontSize:7,color:"#a78bfa",letterSpacing:1,animation:"blink 0.6s ease-in-out infinite"}}>⟡ LEARNING</span>}
-          {isRestructuring&&<span style={{fontSize:7,color:"#fbbf24",letterSpacing:1,animation:"blink 0.4s ease-in-out infinite"}}>⟡ THINKING</span>}
-          <button onClick={()=>{console.log("META clicked, isRestructuring:",isRestructuring,"isAutoLearning:",isAutoLearning); restructureBrain();}} disabled={isRestructuring} title="Metacognition: rebuild optimal hierarchy" style={{background:"none",border:"1px solid rgba(251,191,36,0.25)",borderRadius:3,cursor:isRestructuring?"not-allowed":"pointer",padding:"1px 6px",color:isRestructuring?"#334155":"#fbbf24",fontSize:7,letterSpacing:1,fontFamily:"inherit"}}>META</button>
-          <span style={{fontSize:7,letterSpacing:1,color:syncStatus==="saving"?"#fbbf24":syncStatus==="synced"?"#34d399":"#1e3a5f",transition:"color 0.4s"}}>
-            {syncStatus==="saving"?"● SAVING":syncStatus==="synced"?"● SAVED":"● LOADING"}
-          </span>
-        </div>
-        <div style={{display:"flex",gap:12,alignItems:"center"}}>
-          <button onClick={()=>setSearchEnabled(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}}><div style={{width:5,height:5,borderRadius:"50%",background:searchEnabled?"#34d399":"#1e3a5f",boxShadow:searchEnabled?"0 0 7px #34d399":"none"}}/><span style={{fontSize:7,color:searchEnabled?"#34d399":"#1e3a5f",letterSpacing:1}}>WEB</span></button>
-          {typeof window.__ATLAS_KEY__ !== "undefined" && <button onClick={()=>{if(window.confirm("Reset API key?")){localStorage.removeItem("atlas_key");location.reload();}}} style={{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}}><span style={{fontSize:7,color:"#334155",letterSpacing:1}}>KEY</span></button>}
-          {voiceSupported&&(<button onClick={()=>setVoiceEnabled(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}}><div style={{width:5,height:5,borderRadius:"50%",background:voiceEnabled?"#fbbf24":"#1e3a5f",boxShadow:voiceEnabled?"0 0 7px #fbbf24":"none"}}/><span style={{fontSize:7,color:voiceEnabled?"#fbbf24":"#1e3a5f",letterSpacing:1}}>{voiceEnabled?"MUTE":"UNMUTE"}</span></button>)}
-          <span style={{fontSize:8,color:"#1e3a5f",letterSpacing:1}}>N<span style={{color:"#00d4ff"}}>{stats.nodes}</span> L<span style={{color:"#a78bfa"}}>{stats.links}</span></span>
-        </div>
-      </div>
-
-      {/* Breadcrumb trail */}
-      <div style={{padding:"5px 14px",background:"rgba(0,0,0,0.4)",borderBottom:"1px solid rgba(0,212,255,0.06)",display:"flex",alignItems:"center",gap:0,flexShrink:0,overflowX:"auto",minHeight:28}}>
-        {breadcrumbs.map((crumb,i)=>(
-          <div key={crumb.id} style={{display:"flex",alignItems:"center",gap:0}}>
-            {i>0&&<span style={{color:"#1e3a5f",fontSize:9,margin:"0 6px"}}>›</span>}
-            <button onClick={()=>drillTo(i)} disabled={i===breadcrumbs.length-1}
-              style={{background:"none",border:"none",cursor:i===breadcrumbs.length-1?"default":"pointer",padding:"2px 4px",borderRadius:3,fontFamily:"inherit",fontSize:9,letterSpacing:2,color:i===breadcrumbs.length-1?"#00d4ff":"#2d4a6a",fontWeight:i===breadcrumbs.length-1?"bold":"normal",transition:"color 0.2s"}}
-              onMouseEnter={e=>{if(i<breadcrumbs.length-1)e.target.style.color="#00d4ff";}}
-              onMouseLeave={e=>{if(i<breadcrumbs.length-1)e.target.style.color="#2d4a6a";}}>
-              {crumb.label.toUpperCase()}
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* 3D viewport */}
-      <div style={{flex:1,position:"relative",overflow:"hidden"}}>
-        <div ref={mountRef} style={{width:"100%",height:"100%",cursor:view==="graph"?"grab":"default",touchAction:"none"}}
-          onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
-          onWheel={onWheel} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-        />
-
-        {/* Back button (when inside sub-brain) */}
-        {isInsideSubBrain&&view==="graph"&&(
-          <button onClick={drillOut} style={{position:"absolute",top:10,left:12,padding:"6px 12px",background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",color:"#00d4ff",borderRadius:20,cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,display:"flex",alignItems:"center",gap:6,zIndex:6}}>
-            ← BACK
-          </button>
-        )}
-
-        {/* Expanding overlay */}
-        {isExpanding&&(
-          <div style={{position:"absolute",inset:0,background:"rgba(2,7,18,0.85)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,zIndex:10}}>
-            <div style={{fontSize:10,color:"#00d4ff",letterSpacing:4}}>GENERATING SUB-BRAIN</div>
-            <div style={{display:"flex",gap:6}}>{[0,1,2,3,4].map(i=><div key={i} style={{width:4,height:4,borderRadius:"50%",background:"#00d4ff",animation:`blink ${0.4+i*0.1}s ease-in-out infinite`,animationDelay:`${i*0.1}s`}}/>)}</div>
-          </div>
-        )}
-
-        {view==="graph"&&bootDone&&!isInsideSubBrain&&(<div style={{position:"absolute",bottom:64,right:10,fontSize:8,color:"#1e3a5f",letterSpacing:1,lineHeight:1.9,textAlign:"right",pointerEvents:"none"}}>DRAG · ORBIT<br/>SCROLL · ZOOM<br/>TAP · SELECT{autoLearnLog.length>0&&<div style={{marginTop:6,borderTop:"1px solid rgba(167,139,250,0.15)",paddingTop:4}}>{autoLearnLog.map((l,i)=><div key={i} style={{color:i===0?"#a78bfa":"#1e3a5f",fontSize:7}}>{l}</div>)}</div>}</div>)}
-
-        {/* Node info card */}
-        {selectedNode&&(
-          <div style={{position:"absolute",bottom:64,left:12,background:"rgba(2,7,18,0.96)",border:`1px solid ${nodeColor}`,borderRadius:8,padding:"10px 14px",maxWidth:235,boxShadow:`0 0 28px ${nodeColor}1a`,zIndex:5}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:5}}>
-              <span style={{color:nodeColor,fontSize:11,fontWeight:"bold",letterSpacing:1}}>{selectedNode.label.toUpperCase()}</span>
-              <button onClick={()=>setSelectedNode(null)} style={{color:"#334155",background:"none",border:"none",cursor:"pointer",fontSize:10,padding:0,fontFamily:"inherit"}}>✕</button>
-            </div>
-            <div style={{fontSize:10,color:"#64748b",lineHeight:1.75,marginBottom:8}}>{selectedNode.description||"No description"}</div>
-            {/* Sub-brain indicator */}
-            {subBrainCacheRef.current.has(selectedNode.id)&&(
-              <div style={{fontSize:8,color:"#34d399",letterSpacing:1,marginBottom:6}}>● SUB-BRAIN CACHED</div>
-            )}
-            <div style={{display:"flex",gap:6}}>
-              <button onClick={()=>drillInto(selectedNode)} disabled={isExpanding}
-                style={{flex:1,padding:"6px 8px",background:`${nodeColor}18`,border:`1px solid ${nodeColor}44`,color:nodeColor,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}}>
-                {isExpanding?"GENERATING...":"⬡ EXPAND"}
-              </button>
-              <button onClick={()=>{setView("chat");setChatInput(`Tell me about ${selectedNode.label} and its connections`);}}
-                style={{flex:1,padding:"6px 8px",background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.25)",color:"#a78bfa",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}}>
-                ⟡ QUERY
-              </button>
-            </div>
-          </div>
-        )}
-
-        {transcript&&(<div style={{position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",background:"rgba(248,113,113,0.08)",border:"1px solid rgba(248,113,113,0.25)",borderRadius:20,padding:"6px 14px",fontSize:10,color:"#fca5a5",fontStyle:"italic",whiteSpace:"nowrap"}}>"{transcript}"</div>)}
-
-        {/* Panel overlay */}
-        {view!=="graph"&&(
-          <div style={{position:"fixed",top:0,left:0,right:0,bottom:56,background:"rgba(2,7,18,0.97)",backdropFilter:"blur(28px)",display:"flex",flexDirection:"column",zIndex:8}}>
-            <div style={{padding:"11px 16px",borderBottom:"1px solid rgba(0,212,255,0.07)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{color:"#00d4ff",fontSize:9,letterSpacing:3}}>
-                {view==="add"?`// INJECT${isInsideSubBrain?` INTO ${breadcrumbs[breadcrumbs.length-1].label.toUpperCase()}`:" KNOWLEDGE"}` :"// QUERY ATLAS"}
-              </span>
-              <button onClick={()=>setView("graph")} style={{color:"#334155",background:"none",border:"none",cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>✕</button>
-            </div>
-
-            {view==="add"&&(
-              <div style={{flex:1,display:"flex",flexDirection:"column",padding:"14px 16px",gap:10}}>
-                {isInsideSubBrain&&<div style={{fontSize:9,color:"#34d399",letterSpacing:2,padding:"4px 8px",background:"rgba(52,211,153,0.05)",border:"1px solid rgba(52,211,153,0.12)",borderRadius:4}}>DEPTH: {breadcrumbs.map(b=>b.label).join(" › ")}</div>}
-                <p style={{fontSize:10,color:"#2d4a6a",lineHeight:1.85,margin:0}}>Paste notes or concepts. Atlas extracts nodes and wires them into {isInsideSubBrain?`the ${breadcrumbs[breadcrumbs.length-1].label} sub-brain`:"your main brain"}.</p>
-                <textarea value={inputText} onChange={e=>setInputText(e.target.value)} placeholder={"e.g. 'Quantum entanglement shows two particles can be correlated regardless of distance...'"} style={{flex:1,background:"rgba(0,212,255,0.025)",border:"1px solid rgba(0,212,255,0.1)",borderRadius:6,padding:"11px",color:"#cbd5e1",fontSize:11,fontFamily:"inherit",resize:"none",outline:"none",lineHeight:1.85,minHeight:100}} onFocus={e=>{e.target.style.borderColor="rgba(0,212,255,0.26)";}} onBlur={e=>{e.target.style.borderColor="rgba(0,212,255,0.1)";}}/>
-                <button onClick={addKnowledge} disabled={isProcessing||!inputText.trim()} style={{padding:"12px",background:isProcessing?"rgba(0,212,255,0.02)":"rgba(0,212,255,0.08)",border:`1px solid rgba(0,212,255,${isProcessing?"0.1":"0.26"})`,color:isProcessing?"#1e4a6e":"#00d4ff",borderRadius:6,cursor:(isProcessing||!inputText.trim())?"not-allowed":"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:3,textTransform:"uppercase"}}>
-                  {isProcessing?"⟳  EXTRACTING...":"⟡  INJECT INTO BRAIN"}
-                </button>
-              </div>
-            )}
-
-            {view==="chat"&&(
-              <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                <div style={{flex:1,overflowY:"auto",padding:"12px 16px",display:"flex",flexDirection:"column",gap:10}}>
-                  {messages.map((m,i)=>(
-                    <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
-                      {m.role==="assistant"&&<div style={{width:15,height:15,borderRadius:"50%",background:"#a78bfa15",border:"1px solid #a78bfa30",flexShrink:0,marginRight:7,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,color:"#a78bfa"}}>⟡</div>}
-                      <div style={{maxWidth:"86%",padding:"9px 12px",borderRadius:m.role==="user"?"10px 10px 2px 10px":"2px 10px 10px 10px",background:m.role==="user"?"rgba(0,212,255,0.06)":"rgba(167,139,250,0.05)",border:`1px solid ${m.role==="user"?"rgba(0,212,255,0.16)":"rgba(167,139,250,0.12)"}`,fontSize:11,lineHeight:1.8,color:m.role==="user"?"#94a3b8":"#c4b5fd"}}>{m.content}</div>
-                    </div>
-                  ))}
-                  {isProcessing&&(<div style={{display:"flex",gap:8,alignItems:"center",color:"#a78bfa",fontSize:9,letterSpacing:2,opacity:0.5}}><span>⟳</span><span>ATLAS THINKING</span><div style={{display:"flex",gap:3}}>{[0,1,2].map(i=><div key={i} style={{width:3,height:3,borderRadius:"50%",background:"#a78bfa",animation:`blink ${0.65+i*0.15}s ease-in-out infinite`}}/>)}</div></div>)}
-                  <div ref={chatBottomRef}/>
-                </div>
-                <div style={{padding:"9px 12px",borderTop:"1px solid rgba(0,212,255,0.06)",display:"flex",gap:7}}>
-                  {voiceSupported&&(<button onClick={toggleListen} style={{padding:"9px 11px",background:isListening?"rgba(248,113,113,0.12)":"rgba(248,113,113,0.05)",border:`1px solid rgba(248,113,113,${isListening?"0.38":"0.16"})`,color:isListening?"#f87171":"#3d5166",borderRadius:6,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>{isListening?"⬛":"🎙"}</button>)}
-                  <input value={transcript||chatInput} onChange={e=>{if(!isListening)setChatInput(e.target.value);}} onKeyDown={e=>{if(e.key==="Enter")sendChat();}} placeholder={isListening?"Listening...":"Ask Atlas anything..."} style={{flex:1,padding:"9px 11px",background:"rgba(0,212,255,0.025)",border:"1px solid rgba(0,212,255,0.09)",borderRadius:6,color:"#e2e8f0",fontSize:11,fontFamily:"inherit",outline:"none"}} onFocus={e=>{e.target.style.borderColor="rgba(0,212,255,0.22)";}} onBlur={e=>{e.target.style.borderColor="rgba(0,212,255,0.09)";}}/>
-                  <button onClick={sendChat} disabled={isProcessing} style={{padding:"9px 14px",background:"rgba(167,139,250,0.08)",border:"1px solid rgba(167,139,250,0.2)",color:"#a78bfa",borderRadius:6,cursor:isProcessing?"wait":"pointer",fontFamily:"inherit",fontSize:13}}>→</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div style={{position:"fixed",bottom:0,left:0,right:0,height:56,display:"flex",alignItems:"stretch",borderTop:"1px solid rgba(0,212,255,0.07)",background:"rgba(2,7,18,0.97)",backdropFilter:"blur(20px)",zIndex:999}}>
-          {[{id:"graph",label:"⬡  GRAPH"},{id:"add",label:"+  INJECT"},{id:"chat",label:"⟡  QUERY"}].map(tab=>(
-            <button key={tab.id} onClick={()=>setView(tab.id)} style={{flex:1,background:"transparent",border:"none",borderTop:`2px solid ${view===tab.id?"#00d4ff":"transparent"}`,color:view===tab.id?"#00d4ff":"#2d4a6a",cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,transition:"all 0.2s",paddingTop:2}}>{tab.label}</button>
-          ))}
-        </div>
-      </div>
-
-      <style>{`
-        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.12}}
-        *{box-sizing:border-box}
-        ::-webkit-scrollbar{width:2px}
-        ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.08);border-radius:2px}
-      `}</style>
-    </div>
+      // Tab bar
+      h("div",{style:{position:"fixed",bottom:0,left:0,right:0,height:56,display:"flex",alignItems:"stretch",borderTop:"1px solid rgba(0,212,255,0.07)",background:"rgba(2,7,18,0.97)",backdropFilter:"blur(20px)",zIndex:999}},
+        [{id:"graph",label:"⬡  GRAPH"},{id:"journal",label:"⊕  JOURNAL"},{id:"chat",label:"⟡  QUERY"}].map(function(tab){
+          return h("button",{key:tab.id,onClick:function(){setVw(tab.id);},style:{flex:1,background:"transparent",border:"none",borderTop:"2px solid "+(vw===tab.id?"#00d4ff":"transparent"),color:vw===tab.id?"#00d4ff":"#2d4a6a",cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,transition:"all 0.2s",paddingTop:2}},tab.label);
+        })
+      )
+    )
   );
 }
-
 </script>
-
-<script>
-// Service worker for PWA
-if ('serviceWorker' in navigator) {
-  const sw = `
-    const C='atlas-v9';
-    self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['.'])));self.skipWaiting();});
-    self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});
-    self.addEventListener('fetch',e=>{if(e.request.url.includes('groq')||e.request.url.includes('supabase')||e.request.url.includes('meteo'))return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match('.'))));});
-  `;
-  const blob = new Blob([sw], {type:'application/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
-}
-
-// PWA install prompt
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-  setTimeout(() => {
-    const b = document.getElementById('installBanner');
-    if (b && deferredPrompt) b.style.display = 'flex';
-  }, 3000);
-});
-window.addEventListener('appinstalled', () => {
-  deferredPrompt = null;
-  const b = document.getElementById('installBanner');
-  if (b) b.style.display = 'none';
-});
-function installAtlas() {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(() => {
-      deferredPrompt = null;
-      const b = document.getElementById('installBanner');
-      if (b) b.style.display = 'none';
-    });
-  }
-}
-</script>
-
-<div id="installBanner" style="display:none;position:fixed;bottom:60px;left:12px;right:12px;background:rgba(2,7,18,0.97);border:1px solid rgba(0,212,255,0.3);border-radius:10px;padding:12px 16px;font-family:'Courier New',monospace;z-index:9999;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 0 30px rgba(0,212,255,0.15)">
-  <div><div style="color:#00d4ff;font-size:10px;letter-spacing:2px;font-weight:bold">INSTALL ATLAS</div><div style="color:#334155;font-size:9px;margin-top:2px">Add to home screen</div></div>
-  <div style="display:flex;gap:8px">
-    <button onclick="document.getElementById('installBanner').style.display='none'" style="padding:6px 10px;background:none;border:1px solid #1e3a5f;color:#334155;border-radius:5px;cursor:pointer;font-family:'Courier New',monospace;font-size:9px">LATER</button>
-    <button onclick="installAtlas()" style="padding:6px 12px;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.35);color:#00d4ff;border-radius:5px;cursor:pointer;font-family:'Courier New',monospace;font-size:9px">INSTALL</button>
-  </div>
-</div>
-
 </body>
 </html>
