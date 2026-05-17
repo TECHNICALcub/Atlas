@@ -322,15 +322,35 @@ function Atlas(){
   function learnFrom(userMsg,reply,nodes,links){
     setAl(true);
     var eids=nodes.map(function(n){return n.id;}).join(", ");
-    groqCall([{role:"system",content:"Extract NEW concepts not in ["+eids+"]. Return ONLY valid JSON or NULL. Format: {nodes:[{id,label,group,description}],links:[{source,target,label}]}. Max 2 nodes."},{role:"user",content:"User: "+userMsg.slice(0,200)+"\nAtlas: "+reply.slice(0,200)}],500)
+    groqCall([{role:"system",content:"You are analysing a conversation to extract new knowledge concepts. For each new concept decide: is it a ROOT concept (broad, foundational, stands alone) or a CHILD concept (specific, belongs inside an existing node). Return ONLY valid JSON or NULL. Format: {nodes:[{id,label,group,description,parent:"existing-node-id-or-null"}],links:[{source,target,label}]}. Max 2 nodes. Set parent to an existing node id if this concept belongs inside that node, or null if it is a root concept. Existing nodes: ["+eids+"]."},{role:"user",content:"User: "+userMsg.slice(0,200)+"\nAtlas: "+reply.slice(0,200)}],500)
     .then(function(raw){
       var trimmed=(raw||"").trim();if(trimmed==="NULL"||!trimmed.includes("{"))return;
       var parsed=parseJ(trimmed);if(!parsed)return;
       var eids2=new Set(nodes.map(function(n){return n.id;}));var nn=(parsed.nodes||[]).filter(function(n){return !eids2.has(n.id);});if(!nn.length)return;
       var eks=new Set(links.map(function(l){return getId(l.source)+"--"+getId(l.target);}));var nl=(parsed.links||[]).filter(function(l){return !eks.has(l.source+"--"+l.target);});
-      var an=nodes.concat(nn);var al2=links.concat(nl);
+      var rootNodes=[];var childNodes=[];
+      nn.forEach(function(n){
+        if(n.parent&&nodes.find(function(x){return x.id===n.parent;})){childNodes.push(n);}
+        else{rootNodes.push(n);}
+      });
+      // Add root nodes to main graph
+      var an=nodes.concat(rootNodes);var al2=links.concat(nl);
       stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;rebuild(an,al2,false);
-      var t=ts();nn.forEach(function(n){setJn(function(prev){return [{time:t,type:"learned",title:n.label,detail:n.description||"Learned from conversation",nodeId:n.id}].concat(prev.slice(0,49));});});
+      // Add child nodes to their parent's sub-brain cache
+      childNodes.forEach(function(n){
+        var parentId=n.parent;
+        var existing=cacheR.current.get(parentId)||{nodes:[],links:[]};
+        if(!existing.nodes.find(function(x){return x.id===n.id;})){
+          existing.nodes.push(n);
+          existing.links.push({source:parentId,target:n.id,label:"includes"});
+          cacheR.current.set(parentId,existing);
+        }
+      });
+      var t=ts();nn.forEach(function(n){
+        var isChild=childNodes.includes(n);
+        var parentLabel=isChild?nodes.find(function(x){return x.id===n.parent;})?.label:"root";
+        setJn(function(prev){return [{time:t,type:"learned",title:n.label,detail:isChild?"Nested inside "+parentLabel+": "+(n.description||""):(n.description||"Learned from conversation"),nodeId:isChild?n.parent:n.id}].concat(prev.slice(0,49));});
+      });
       if(saveR.current)saveR.current(an,al2);
     }).catch(function(e){console.error(e);}).finally(function(){setAl(false);});
   }
@@ -339,9 +359,23 @@ function Atlas(){
     var nodes=graphNR.current;if(nodes.length<3)return;setIr(true);
     try{
       var summary=nodes.map(function(n){return n.id+":"+n.label;}).join("\n");
-      var raw=await groqCall([{role:"system",content:"Restructure this knowledge graph. Return ONLY valid JSON: {nodes:[{id,label,group,description}],links:[{source,target,label}],reason:string}. Keep ALL concepts. Return ONLY JSON."},{role:"user",content:"Restructure:\n"+summary}],1500);
+      var raw=await groqCall([{role:"system",content:"You are performing a radical metacognitive restructuring of a knowledge graph. Your job is to identify which nodes are genuinely ROOT-LEVEL concepts (broad, foundational, worth having at the top level) versus OVERLY SPECIFIC concepts that should be nested inside other nodes as sub-concepts. Be ruthless. A good root graph should have 8-16 core nodes maximum. Everything more specific belongs inside a sub-brain. Return ONLY valid JSON: {nodes:[{id,label,group,description}],links:[{source,target,label}],demoted:[{id,label,parent_id,reason}],reason:string}. The demoted array lists nodes removed from root level and which root node they belong inside. Keep ALL knowledge — demoted nodes go into sub-brains not the void. Return ONLY JSON."},{role:"user",content:"Restructure:\n"+summary}],1500);
       var parsed=parseJ(raw);if(!parsed||!parsed.nodes||parsed.nodes.length<3)throw new Error("Invalid");
-      graphNR.current=parsed.nodes;stackR.current[0].nodes=parsed.nodes;stackR.current[0].links=parsed.links||[];cacheR.current.clear();
+      graphNR.current=parsed.nodes;stackR.current[0].nodes=parsed.nodes;stackR.current[0].links=parsed.links||[];
+      // Handle demoted nodes - put them in their parent sub-brain caches
+      if(parsed.demoted&&parsed.demoted.length>0){
+        parsed.demoted.forEach(function(d){
+          if(!d.parent_id)return;
+          var existing=cacheR.current.get(d.parent_id)||{nodes:[],links:[]};
+          if(!existing.nodes.find(function(x){return x.id===d.id;})){
+            existing.nodes.push({id:d.id,label:d.label,group:0,description:d.reason||""});
+            existing.links.push({source:d.parent_id,target:d.id,label:"includes"});
+            cacheR.current.set(d.parent_id,existing);
+          }
+        });
+      } else {
+        cacheR.current.clear();
+      }
       rebuild(parsed.nodes,parsed.links||[],true);if(saveR.current)saveR.current(parsed.nodes,parsed.links||[]);
     }catch(e){console.error("restructure:",e);}finally{setIr(false);}
   },[rebuild]);
