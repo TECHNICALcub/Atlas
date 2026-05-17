@@ -128,9 +128,19 @@ var atlasStorage={
 // Key management
 function resetKey(){if(window.confirm("Reset API key?")){localStorage.removeItem("atlas_key");location.reload();}}
 function initAtlas(){
-  var key=document.getElementById("apiKey").value.trim();
-  if(!key.startsWith("gsk_")){alert("Please enter a valid Groq key starting with gsk_");return;}
-  window.__K__=key;localStorage.setItem("atlas_key",key);launch();
+  try {
+    var inp=document.getElementById("apiKey");
+    if(!inp){alert("ERROR: apiKey input not found");return;}
+    var key=inp.value.trim();
+    alert("Key entered: "+(key?key.slice(0,8)+"...":"EMPTY")+" starts with gsk_: "+key.startsWith("gsk_"));
+    if(!key.startsWith("gsk_")){alert("Invalid key format");return;}
+    window.__K__=key;
+    localStorage.setItem("atlas_key",key);
+    alert("Key saved. Launching...");
+    launch();
+  } catch(e) {
+    alert("initAtlas error: "+e.message);
+  }
 }
 function launch(){
   document.getElementById("setup").style.display="none";
