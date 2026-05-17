@@ -148,7 +148,9 @@ function applyTB(q,dx,dy,s){var qH=new THREE.Quaternion().setFromAxisAngle(new T
 function applyCAM(cam,q,r){var p=new THREE.Vector3(0,0,r).applyQuaternion(q);var u=new THREE.Vector3(0,1,0).applyQuaternion(q);cam.position.copy(p);cam.up.copy(u);cam.lookAt(0,0,0);}
 async function groqCall(msgs,maxTok){
   var res=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__K__},body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:maxTok||1000,messages:msgs})});
-  var d=await res.json();return d.choices&&d.choices[0]?d.choices[0].message.content:"";
+  var d=await res.json();
+  if(d.error)throw new Error(d.error.message||JSON.stringify(d.error));
+  return d.choices&&d.choices[0]?d.choices[0].message.content:"";
 }
 function parseJ(raw){var m=raw.match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0]);}catch(e){return null;}}
 function ts(){var n=new Date();return n.getHours()+":"+String(n.getMinutes()).padStart(2,"0");}
@@ -388,7 +390,7 @@ function Atlas(){
         if(pref)u2.voice=pref;window.speechSynthesis.speak(u2);
       }
       if(reply&&reply!=="No response."){var rn=stackR.current[0].nodes;var rl=stackR.current[0].links||simLR.current;setTimeout(function(){learnFrom(msg,reply,rn,rl);},1500);}
-    }catch(e){setMsgs(hist.concat([{role:"assistant",content:"Connection error. Check your Groq key."}]));}
+    }catch(e){setMsgs(hist.concat([{role:"assistant",content:"Error: "+e.message+" | Key: "+(window.__K__?"set ("+window.__K__.slice(0,8)+"...)":"NOT SET")}]));}
     finally{setIp(false);}
   },[ci,ip,msgs,ve]);
 
