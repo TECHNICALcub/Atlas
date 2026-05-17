@@ -479,7 +479,7 @@ function Atlas(){
         )
       ),
 
-      vw!=="graph"&&h("div",{style:{position:"absolute",top:0,left:0,right:0,bottom:56,background:"rgba(2,7,18,0.97)",backdropFilter:"blur(28px)",display:"flex",flexDirection:"column",zIndex:8}},
+      vw!=="graph"&&h("div",{style:{position:"absolute",top:0,left:0,right:0,bottom:60,background:"rgba(2,7,18,0.97)",backdropFilter:"blur(28px)",display:"flex",flexDirection:"column",zIndex:8}},
         h("div",{style:{padding:"11px 16px",borderBottom:"1px solid rgba(0,212,255,0.07)",display:"flex",justifyContent:"space-between",alignItems:"center"}},
           h("span",{style:{color:"#00d4ff",fontSize:9,letterSpacing:3}},vw==="journal"?"// NEURAL GROWTH LOG":"// QUERY ATLAS"),
           h("button",{onClick:function(){setVw("graph");},style:{color:"#334155",background:"none",border:"none",cursor:"pointer",fontSize:14,fontFamily:"inherit"}},"✕")
@@ -507,8 +507,8 @@ function Atlas(){
               )
         ),
 
-        vw==="chat"&&h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
-          h("div",{style:{flex:1,overflowY:"auto",padding:"12px 16px",display:"flex",flexDirection:"column",gap:10}},
+        vw==="chat"&&h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0}},
+          h("div",{style:{flex:1,overflowY:"auto",padding:"12px 16px",display:"flex",flexDirection:"column",gap:10,minHeight:0}},
             msgs.map(function(m,i){return h("div",{key:i,style:{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}},
               m.role==="assistant"&&h("div",{style:{width:15,height:15,borderRadius:"50%",background:"#a78bfa15",border:"1px solid #a78bfa30",flexShrink:0,marginRight:7,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,color:"#a78bfa"}},"⟡"),
               h("div",{style:{maxWidth:"86%",padding:"9px 12px",borderRadius:m.role==="user"?"10px 10px 2px 10px":"2px 10px 10px 10px",background:m.role==="user"?"rgba(0,212,255,0.06)":"rgba(167,139,250,0.05)",border:"1px solid "+(m.role==="user"?"rgba(0,212,255,0.16)":"rgba(167,139,250,0.12)"),fontSize:11,lineHeight:1.8,color:m.role==="user"?"#94a3b8":"#c4b5fd"}},m.content)
@@ -516,7 +516,7 @@ function Atlas(){
             ip&&h("div",{style:{display:"flex",gap:8,alignItems:"center",color:"#a78bfa",fontSize:9,letterSpacing:2,opacity:0.5}},h("span",null,"⟳"),h("span",null,"THINKING"),[0,1,2].map(function(i){return h("div",{key:i,style:{width:3,height:3,borderRadius:"50%",background:"#a78bfa",animation:"blink "+(0.65+i*0.15)+"s ease-in-out infinite"}});})),
             h("div",{ref:cbR})
           ),
-          h("div",{style:{padding:"9px 12px",borderTop:"1px solid rgba(0,212,255,0.06)",display:"flex",gap:7}},
+          h("div",{style:{padding:"9px 12px",borderTop:"1px solid rgba(0,212,255,0.06)",display:"flex",gap:7,flexShrink:0}},
             vs&&h("button",{onClick:toggleListen,style:{padding:"9px 11px",background:il?"rgba(248,113,113,0.12)":"rgba(248,113,113,0.05)",border:"1px solid rgba(248,113,113,"+(il?"0.38":"0.16")+")",color:il?"#f87171":"#3d5166",borderRadius:6,cursor:"pointer",fontSize:11,fontFamily:"inherit"}},il?"⬛":"🎙"),
             h("input",{value:tr2||ci,onChange:function(e){if(!il)setCi(e.target.value);},onKeyDown:function(e){if(e.key==="Enter")sendChat();},placeholder:il?"Listening...":"Ask Atlas anything...",style:{flex:1,padding:"9px 11px",background:"rgba(0,212,255,0.025)",border:"1px solid rgba(0,212,255,0.09)",borderRadius:6,color:"#e2e8f0",fontSize:11,fontFamily:"inherit",outline:"none"}}),
             h("button",{onClick:sendChat,disabled:ip,style:{padding:"9px 14px",background:"rgba(167,139,250,0.08)",border:"1px solid rgba(167,139,250,0.2)",color:"#a78bfa",borderRadius:6,cursor:ip?"wait":"pointer",fontFamily:"inherit",fontSize:13}},"→")
