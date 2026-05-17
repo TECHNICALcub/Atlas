@@ -92,7 +92,7 @@ document.getElementById("initBtn").addEventListener("click", initAtlas);
 document.getElementById("apiKey").addEventListener("keydown", function(e) { if(e.key==="Enter") initAtlas(); });
 
 window.addEventListener("load", function() {
-  var saved = localStorage.getItem("atlas_key");
+  var saved = localStorage.getItem("atlas_key") || localStorage.getItem("atlas_api_key");
   if (saved && saved.startsWith("gsk_")) {
     window.__ATLAS_KEY__ = saved;
     launch();
@@ -961,6 +961,7 @@ Rules: Extract 2-6 NEW concepts NOT in [${existingIds}]. Create 2-8 links to new
         </div>
         <div style={{display:"flex",gap:12,alignItems:"center"}}>
           <button onClick={()=>setSearchEnabled(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}}><div style={{width:5,height:5,borderRadius:"50%",background:searchEnabled?"#34d399":"#1e3a5f",boxShadow:searchEnabled?"0 0 7px #34d399":"none"}}/><span style={{fontSize:7,color:searchEnabled?"#34d399":"#1e3a5f",letterSpacing:1}}>WEB</span></button>
+          {typeof window.__ATLAS_KEY__ !== "undefined" && <button onClick={()=>{if(window.confirm("Reset API key?")){localStorage.removeItem("atlas_key");location.reload();}}} style={{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}}><span style={{fontSize:7,color:"#334155",letterSpacing:1}}>KEY</span></button>}
           {voiceSupported&&(<button onClick={()=>setVoiceEnabled(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}}><div style={{width:5,height:5,borderRadius:"50%",background:voiceEnabled?"#fbbf24":"#1e3a5f",boxShadow:voiceEnabled?"0 0 7px #fbbf24":"none"}}/><span style={{fontSize:7,color:voiceEnabled?"#fbbf24":"#1e3a5f",letterSpacing:1}}>{voiceEnabled?"MUTE":"UNMUTE"}</span></button>)}
           <span style={{fontSize:8,color:"#1e3a5f",letterSpacing:1}}>N<span style={{color:"#00d4ff"}}>{stats.nodes}</span> L<span style={{color:"#a78bfa"}}>{stats.links}</span></span>
         </div>
