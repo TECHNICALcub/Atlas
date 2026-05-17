@@ -24,11 +24,12 @@ html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:
 </style>
 </head>
 <body>
+<div id="errbanner" style="display:none;position:fixed;top:0;left:0;right:0;background:#f87171;color:#000;font-size:11px;padding:8px;z-index:9999;font-family:monospace;word-break:break-all"></div>
 <div id="setup">
   <h1>A T L A S</h1>
   <p style="font-size:9px;color:#1e3a5f;letter-spacing:2px;font-family:'Courier New',monospace">PERSONAL AI BRAIN</p>
   <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" spellcheck="false"/>
-  <button id="initBtn">INITIALISE ATLAS</button>
+  <button id="initBtn" onclick="initAtlas()">INITIALISE ATLAS</button>
   <div class="note">Get a free key at console.groq.com</div>
 </div>
 <div id="root" style="display:none"></div>
@@ -37,6 +38,11 @@ html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+window.onerror=function(msg,src,line,col,err){
+  var b=document.getElementById("errbanner");
+  if(b){b.style.display="block";b.textContent="JS ERROR: "+msg+" (line "+line+")";}
+  return false;
+};
 var SUPABASE_URL="https://zvujnkppvdwfpvczqnbc.supabase.co";
 var SUPABASE_KEY="sb_publishable_uPcHMh53kGtcNEa2vpHnug_WC_JN2lb";
 var PALETTE=["#00d4ff","#a78bfa","#34d399","#fbbf24","#f87171","#fb7185","#38bdf8","#c084fc","#6ee7b7","#fcd34d"];
