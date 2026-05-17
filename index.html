@@ -24,12 +24,11 @@ html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:
 </style>
 </head>
 <body>
-<div id="errbanner" style="display:none;position:fixed;top:0;left:0;right:0;background:#f87171;color:#000;font-size:11px;padding:8px;z-index:9999;font-family:monospace;word-break:break-all;pointer-events:none"></div>
 <div id="setup">
   <h1>A T L A S</h1>
   <p style="font-size:9px;color:#1e3a5f;letter-spacing:2px;font-family:'Courier New',monospace">PERSONAL AI BRAIN</p>
   <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" spellcheck="false"/>
-  <button id="initBtn" onclick="initAtlas()">INITIALISE ATLAS</button>
+  <button onclick="initAtlas()">INITIALISE ATLAS</button>
   <div class="note">Get a free key at console.groq.com</div>
 </div>
 <div id="root" style="display:none;pointer-events:none"></div>
@@ -38,23 +37,12 @@ html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// Handle ?reset=1 in URL
-if(window.location.search.includes("reset=1")){
-  localStorage.removeItem("atlas_key");
-  localStorage.removeItem("atlas_api_key");
-}
-
-window.onerror=function(msg,src,line,col,err){
-  var b=document.getElementById("errbanner");
-  if(b){b.style.display="block";b.textContent="JS ERROR: "+msg+" (line "+line+")";}
-  return false;
-};
 var SUPABASE_URL="https://zvujnkppvdwfpvczqnbc.supabase.co";
 var SUPABASE_KEY="sb_publishable_uPcHMh53kGtcNEa2vpHnug_WC_JN2lb";
 var PALETTE=["#00d4ff","#a78bfa","#34d399","#fbbf24","#f87171","#fb7185","#38bdf8","#c084fc","#6ee7b7","#fcd34d"];
 var SEED_NODES=[
 {id:"second-brain",label:"Second Brain",group:0,description:"Your external cognitive system for capturing and connecting knowledge"},
-{id:"artificial-intelligence",label:"AI",group:1,description:"Machine systems that simulate human intelligence and pattern recognition"},
+{id:"artificial-intelligence",label:"AI",group:1,description:"Machine systems that simulate human intelligence"},
 {id:"learning",label:"Learning",group:2,description:"The active process of acquiring and integrating new knowledge"},
 {id:"obsidian",label:"Obsidian",group:4,description:"Personal knowledge management using bidirectional links"},
 {id:"memory",label:"Memory",group:2,description:"Biological encoding, storage and retrieval of information"},
@@ -117,7 +105,6 @@ var SEED_LINKS=[
 {source:"quantum-mechanics",target:"consciousness",label:"may relate to"}
 ];
 
-// Storage
 var atlasStorage={
   get:async function(k){
     try{var r=await fetch(SUPABASE_URL+"/rest/v1/atlas_brain?id=eq."+encodeURIComponent(k)+"&select=data",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});var rows=await r.json();if(rows&&rows.length>0&&rows[0].data){try{localStorage.setItem("a__"+k,rows[0].data);}catch(e){}return{value:rows[0].data};}}catch(e){}
@@ -131,39 +118,38 @@ var atlasStorage={
   }
 };
 
-// Key management
 function resetKey(){if(window.confirm("Reset API key?")){localStorage.removeItem("atlas_key");location.reload();}}
+
 function initAtlas(){
-  try {
-    var inp=document.getElementById("apiKey");
-    if(!inp){alert("ERROR: apiKey input not found");return;}
-    var key=inp.value.trim();
-    alert("Key entered: "+(key?key.slice(0,8)+"...":"EMPTY")+" starts with gsk_: "+key.startsWith("gsk_"));
-    if(!key.startsWith("gsk_")){alert("Invalid key format");return;}
-    window.__K__=key;
-    localStorage.setItem("atlas_key",key);
-    alert("Key saved. Launching...");
-    launch();
-  } catch(e) {
-    alert("initAtlas error: "+e.message);
+  var key=document.getElementById("apiKey").value.trim();
+  if(!key){alert("Please enter your Groq API key");return;}
+  if(!key.startsWith("gsk_")){alert("Key must start with gsk_");return;}
+  window.__K__=key;
+  localStorage.setItem("atlas_key",key);
+  launch();
+}
+
+function launch(){
+  try{
+    document.getElementById("setup").style.display="none";
+    document.getElementById("root").style.display="block";
+    document.getElementById("root").style.pointerEvents="auto";
+    ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Atlas));
+  }catch(e){
+    document.getElementById("setup").style.display="flex";
+    document.getElementById("root").style.display="none";
+    alert("Error: "+e.message);
   }
 }
-function launch(){
-  document.getElementById("setup").style.display="none";
-  document.getElementById("root").style.display="block";document.getElementById("root").style.pointerEvents="auto";
-  ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Atlas));
-}
-document.getElementById("initBtn").addEventListener("click",initAtlas);
-document.getElementById("apiKey").addEventListener("keydown",function(e){if(e.key==="Enter")initAtlas();});
+
 window.addEventListener("load",function(){
   var s=localStorage.getItem("atlas_key")||localStorage.getItem("atlas_api_key");
   if(s&&s.startsWith("gsk_")){window.__K__=s;launch();}
 });
 
-// Helpers
 function makeLabel(text,col){
   var c=document.createElement("canvas");c.width=320;c.height=56;
-  var ctx=c.getContext("2d");ctx.clearRect(0,0,320,56);ctx.font="bold 20px 'Courier New',monospace";ctx.textAlign="center";ctx.shadowColor=col;ctx.shadowBlur=12;ctx.fillStyle=col;ctx.fillText(text,160,36);
+  var ctx=c.getContext("2d");ctx.clearRect(0,0,320,56);ctx.font="bold 20px 'Courier New',monospace";ctx.textAlign="center";ctx.shadowColor=col;ctx.shadowBlur=16;ctx.fillStyle="#ffffff";ctx.fillText(text,160,36);
   var tex=new THREE.CanvasTexture(c);var mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});var spr=new THREE.Sprite(mat);spr.scale.set(Math.max(60,text.length*9),18,1);return spr;
 }
 function applyTB(q,dx,dy,s){var qH=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*s);var ax=new THREE.Vector3(1,0,0).applyQuaternion(q);var qV=new THREE.Quaternion().setFromAxisAngle(ax,-dy*s);q.premultiply(qH).premultiply(qV).normalize();}
@@ -171,14 +157,13 @@ function applyCAM(cam,q,r){var p=new THREE.Vector3(0,0,r).applyQuaternion(q);var
 async function groqCall(msgs,maxTok){
   var res=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__K__},body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:maxTok||1000,messages:msgs})});
   var d=await res.json();
-  if(d.error)throw new Error(d.error.message||JSON.stringify(d.error));
+  if(d.error)throw new Error(d.error.message||"Groq error");
   return d.choices&&d.choices[0]?d.choices[0].message.content:"";
 }
 function parseJ(raw){var m=raw.match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0]);}catch(e){return null;}}
-function ts(){var n=new Date();return n.getHours()+":"+String(n.getMinutes()).padStart(2,"0");}
+function nowTS(){var n=new Date();return n.getHours()+":"+String(n.getMinutes()).padStart(2,"0");}
 function getId(x){return typeof x==="object"?x.id:x;}
 
-// Atlas Component
 function Atlas(){
   var h=React.createElement;
   var u=React.useState;var ue=React.useEffect;var ur=React.useRef;var uc=React.useCallback;
@@ -189,7 +174,7 @@ function Atlas(){
   var stackR=ur([{id:"root",label:"ATLAS",nodes:SEED_NODES.map(function(n){return Object.assign({},n);}),links:SEED_LINKS.map(function(l){return Object.assign({},l);})}]);
   var cacheR=ur(new Map());
   var trR=ur({rotQ:new THREE.Quaternion(),velDx:0,velDy:0,radius:520,dragging:false,lastX:0,lastY:0});
-  var pinR=ur(null),pdR=ur(null),tdR=ur(null),rcR=ur(new THREE.Raycaster()),selIdR=ur(null),recR=ur(null),cbR=ur(null),saveR=ur(null),starsR=ur([]);
+  var pinR=ur(null),pdR=ur(null),tdR=ur(null),rcR=ur(new THREE.Raycaster()),selIdR=ur(null),recR=ur(null),cbR=ur(null),saveR=ur(null);
 
   var _sn=u(null);var selNode=_sn[0];var setSelNode=_sn[1];
   var _vw=u("graph");var vw=_vw[0];var setVw=_vw[1];
@@ -250,11 +235,9 @@ function Atlas(){
     setSt({nodes:nodes.length,links:fl.length});setSelNode(null);
   },[]);
 
-  // Three init
   ue(function(){
     var mount=mountR.current;if(!mount)return;
     setVs('SpeechRecognition' in window||'webkitSpeechRecognition' in window);
-    starsR.current=Array.from({length:140},function(){return{x:Math.random(),y:Math.random(),r:Math.random()*1.3+0.2,ph:Math.random()*Math.PI*2,sp:Math.random()*0.007+0.002};});
     var W=mount.offsetWidth,H=mount.offsetHeight;
     var scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x020712,0.0006);sceneR.current=scene;
     var cam=new THREE.PerspectiveCamera(60,W/H,1,4000);camR.current=cam;applyCAM(cam,trR.current.rotQ,trR.current.radius);
@@ -269,8 +252,8 @@ function Atlas(){
     scene.add(new THREE.Points(sGeo,new THREE.PointsMaterial({size:1.2,vertexColors:true,transparent:true,opacity:0.65})));
     var onR=function(){var W2=mount.offsetWidth,H2=mount.offsetHeight;ren.setSize(W2,H2);cam.aspect=W2/H2;cam.updateProjectionMatrix();};
     window.addEventListener("resize",onR);
-    function anim(){
-      rafR.current=requestAnimationFrame(anim);var t=tickR.current++;var tr=trR.current;
+    function animLoop(){
+      rafR.current=requestAnimationFrame(animLoop);var t=tickR.current++;var tr=trR.current;
       if(!tr.dragging){tr.velDx*=0.96;tr.velDy*=0.96;}
       if(Math.sqrt(tr.velDx*tr.velDx+tr.velDy*tr.velDy)>0.00003){applyTB(tr.rotQ,tr.velDx/0.005,tr.velDy/0.005,0.005);applyCAM(cam,tr.rotQ,tr.radius);}
       var ns=simNR.current;
@@ -294,7 +277,7 @@ function Atlas(){
       if(lines){var pp=lines.geometry.attributes.position.array;simLR.current.forEach(function(lnk,idx){var s=ns.find(function(n){return n.id===lnk.source;});var tN=ns.find(function(n){return n.id===lnk.target;});if(!s||!tN)return;var b=idx*6;pp[b]=s.x;pp[b+1]=s.y;pp[b+2]=s.z;pp[b+3]=tN.x;pp[b+4]=tN.y;pp[b+5]=tN.z;});lines.geometry.attributes.position.needsUpdate=true;lines.material.opacity=0.22+0.08*Math.sin(t*0.015);}
       ren.render(scene,cam);
     }
-    anim();
+    animLoop();
     (async function(){
       try{
         var saved=await atlasStorage.get("atlas-brain");
@@ -320,8 +303,8 @@ function Atlas(){
       var tr=trR.current;var target=new THREE.Vector3(node.x,node.y,node.z).normalize();
       var tQ=new THREE.Quaternion();tQ.setFromUnitVectors(new THREE.Vector3(0,0,1),target.clone().negate());
       var fr=0;
-      function a(){fr++;tr.rotQ.slerp(tQ,0.06);tr.radius+=(320-tr.radius)*0.06;if(camR.current){var p=new THREE.Vector3(0,0,tr.radius).applyQuaternion(tr.rotQ);var u=new THREE.Vector3(0,1,0).applyQuaternion(tr.rotQ);camR.current.position.copy(p);camR.current.up.copy(u);camR.current.lookAt(0,0,0);}if(fr<50)requestAnimationFrame(a);}
-      a();
+      function flyAnim(){fr++;tr.rotQ.slerp(tQ,0.06);tr.radius+=(320-tr.radius)*0.06;if(camR.current){var p=new THREE.Vector3(0,0,tr.radius).applyQuaternion(tr.rotQ);var u2=new THREE.Vector3(0,1,0).applyQuaternion(tr.rotQ);camR.current.position.copy(p);camR.current.up.copy(u2);camR.current.lookAt(0,0,0);}if(fr<50)requestAnimationFrame(flyAnim);}
+      flyAnim();
     },300);
   },[]);
 
@@ -329,14 +312,15 @@ function Atlas(){
     if(nodes.length<4)return;setAl(true);
     var ns2=nodes.map(function(n){return n.id+":"+n.label;}).join(", ");
     var ls2=links.map(function(l){return getId(l.source)+"->"+getId(l.target);}).join(", ");
-    groqCall([{role:"system",content:"Generate 2-3 new bridge concept nodes. Return ONLY valid JSON: {nodes:[{id,label,group,description}],links:[{source,target,label}]}. Return ONLY JSON."},{role:"user",content:"Nodes: "+ns2+"\nLinks: "+ls2+"\nGenerate bridge nodes."}],800)
+    var sysprompt="Generate 2-3 new bridge concept nodes connecting existing isolated nodes. Return ONLY valid JSON with nodes array and links array. Return ONLY JSON.";
+    groqCall([{role:"system",content:sysprompt},{role:"user",content:"Nodes: "+ns2+"\nLinks: "+ls2+"\nGenerate bridge nodes."}],800)
     .then(function(raw){
       var parsed=parseJ(raw);if(!parsed)return;
       var eids=new Set(nodes.map(function(n){return n.id;}));var nn=(parsed.nodes||[]).filter(function(n){return !eids.has(n.id);});if(!nn.length)return;
       var eks=new Set(links.map(function(l){return getId(l.source)+"--"+getId(l.target);}));var nl=(parsed.links||[]).filter(function(l){return !eks.has(l.source+"--"+l.target);});
       var an=nodes.concat(nn);var al2=links.concat(nl);
       stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;rebuild(an,al2,false);
-      var t=ts();nn.forEach(function(n){setJn(function(prev){return [{time:t,type:"reflected",title:n.label,detail:n.description||"Self-discovered bridge",nodeId:n.id}].concat(prev.slice(0,49));});});
+      var t=nowTS();nn.forEach(function(n){setJn(function(prev){return [{time:t,type:"reflected",title:n.label,detail:n.description||"Self-discovered bridge",nodeId:n.id}].concat(prev.slice(0,49));});});
       if(saveR.current)saveR.current(an,al2);
     }).catch(function(e){console.error(e);}).finally(function(){setAl(false);});
   }
@@ -344,35 +328,42 @@ function Atlas(){
   function learnFrom(userMsg,reply,nodes,links){
     setAl(true);
     var eids=nodes.map(function(n){return n.id;}).join(", ");
-    groqCall([{role:"system",content:"You are analysing a conversation to extract new knowledge concepts. For each new concept decide: is it a ROOT concept (broad, foundational, stands alone) or a CHILD concept (specific, belongs inside an existing node). Return ONLY valid JSON or NULL. Format: {nodes:[{id,label,group,description,parent:"existing-node-id-or-null"}],links:[{source,target,label}]}. Max 2 nodes. Set parent to an existing node id if this concept belongs inside that node, or null if it is a root concept. Existing nodes: ["+eids+"]."},{role:"user",content:"User: "+userMsg.slice(0,200)+"\nAtlas: "+reply.slice(0,200)}],500)
+    // System prompt written as concatenation to avoid any quote/brace issues
+    var sys="Extract NEW concepts from this conversation not in ["+eids+"]. "
+      +"Return ONLY valid JSON or NULL. "
+      +"JSON format: nodes array where each node has id, label, group, description, and parent fields. "
+      +"Set parent to an existing node id if this concept belongs inside that node as a sub-concept, or null if it is a broad root-level concept. "
+      +"Also include links array. Max 2 nodes. Return NULL or JSON only.";
+    groqCall([{role:"system",content:sys},{role:"user",content:"User: "+userMsg.slice(0,200)+"\nAtlas: "+reply.slice(0,200)}],500)
     .then(function(raw){
       var trimmed=(raw||"").trim();if(trimmed==="NULL"||!trimmed.includes("{"))return;
       var parsed=parseJ(trimmed);if(!parsed)return;
-      var eids2=new Set(nodes.map(function(n){return n.id;}));var nn=(parsed.nodes||[]).filter(function(n){return !eids2.has(n.id);});if(!nn.length)return;
-      var eks=new Set(links.map(function(l){return getId(l.source)+"--"+getId(l.target);}));var nl=(parsed.links||[]).filter(function(l){return !eks.has(l.source+"--"+l.target);});
-      var rootNodes=[];var childNodes=[];
+      var eids2=new Set(nodes.map(function(n){return n.id;}));
+      var nn=(parsed.nodes||[]).filter(function(n){return !eids2.has(n.id);});if(!nn.length)return;
+      var eks=new Set(links.map(function(l){return getId(l.source)+"--"+getId(l.target);}));
+      var nl=(parsed.links||[]).filter(function(l){return !eks.has(l.source+"--"+l.target);});
+      // Route nodes: parent set = sub-brain, no parent = root graph
+      var rootNN=[];var childNN=[];
       nn.forEach(function(n){
-        if(n.parent&&nodes.find(function(x){return x.id===n.parent;})){childNodes.push(n);}
-        else{rootNodes.push(n);}
+        var parentNode=n.parent?nodes.find(function(x){return x.id===n.parent;}):null;
+        if(parentNode){childNN.push({node:n,parent:parentNode});}
+        else{rootNN.push(n);}
       });
-      // Add root nodes to main graph
-      var an=nodes.concat(rootNodes);var al2=links.concat(nl);
+      var an=nodes.concat(rootNN);var al2=links.concat(nl);
       stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;rebuild(an,al2,false);
-      // Add child nodes to their parent's sub-brain cache
-      childNodes.forEach(function(n){
-        var parentId=n.parent;
-        var existing=cacheR.current.get(parentId)||{nodes:[],links:[]};
-        if(!existing.nodes.find(function(x){return x.id===n.id;})){
-          existing.nodes.push(n);
-          existing.links.push({source:parentId,target:n.id,label:"includes"});
-          cacheR.current.set(parentId,existing);
+      // Add child nodes to sub-brain caches
+      childNN.forEach(function(item){
+        var pid=item.parent.id;
+        var existing=cacheR.current.get(pid)||{nodes:[],links:[]};
+        if(!existing.nodes.find(function(x){return x.id===item.node.id;})){
+          existing.nodes.push(item.node);
+          existing.links.push({source:pid,target:item.node.id,label:"includes"});
+          cacheR.current.set(pid,existing);
         }
       });
-      var t=ts();nn.forEach(function(n){
-        var isChild=childNodes.includes(n);
-        var parentLabel=isChild?(function(){var _p=nodes.find(function(x){return x.id===n.parent;});return _p?_p.label:'unknown';})():"root";
-        setJn(function(prev){return [{time:t,type:"learned",title:n.label,detail:isChild?"Nested inside "+parentLabel+": "+(n.description||""):(n.description||"Learned from conversation"),nodeId:isChild?n.parent:n.id}].concat(prev.slice(0,49));});
-      });
+      var t=nowTS();
+      rootNN.forEach(function(n){setJn(function(prev){return [{time:t,type:"learned",title:n.label,detail:n.description||"Learned from conversation",nodeId:n.id}].concat(prev.slice(0,49));});});
+      childNN.forEach(function(item){setJn(function(prev){return [{time:t,type:"learned",title:item.node.label,detail:"Nested inside "+item.parent.label+": "+(item.node.description||""),nodeId:item.parent.id}].concat(prev.slice(0,49));});});
       if(saveR.current)saveR.current(an,al2);
     }).catch(function(e){console.error(e);}).finally(function(){setAl(false);});
   }
@@ -381,10 +372,20 @@ function Atlas(){
     var nodes=graphNR.current;if(nodes.length<3)return;setIr(true);
     try{
       var summary=nodes.map(function(n){return n.id+":"+n.label;}).join("\n");
-      var raw=await groqCall([{role:"system",content:"You are performing a radical metacognitive restructuring of a knowledge graph. Your job is to identify which nodes are genuinely ROOT-LEVEL concepts (broad, foundational, worth having at the top level) versus OVERLY SPECIFIC concepts that should be nested inside other nodes as sub-concepts. Be ruthless. A good root graph should have 8-16 core nodes maximum. Everything more specific belongs inside a sub-brain. Return ONLY valid JSON: {nodes:[{id,label,group,description}],links:[{source,target,label}],demoted:[{id,label,parent_id,reason}],reason:string}. The demoted array lists nodes removed from root level and which root node they belong inside. Keep ALL knowledge — demoted nodes go into sub-brains not the void. Return ONLY JSON."},{role:"user",content:"Restructure:\n"+summary}],1500);
-      var parsed=parseJ(raw);if(!parsed||!parsed.nodes||parsed.nodes.length<3)throw new Error("Invalid");
+      // Aggressive META prompt - demote specific nodes to sub-brains
+      var sys="You are performing a radical metacognitive restructuring of a knowledge graph. "
+        +"Identify which nodes are genuinely ROOT-LEVEL (broad, foundational, 8-15 nodes max) "
+        +"versus OVERLY SPECIFIC (should be nested inside a root node as sub-concepts). "
+        +"Be ruthless. Return ONLY valid JSON with: "
+        +"nodes array (root nodes only), "
+        +"links array, "
+        +"demoted array where each item has id, label, parent_id, reason fields, "
+        +"reason string. "
+        +"All knowledge is preserved - demoted nodes go into sub-brains. Return ONLY JSON.";
+      var raw=await groqCall([{role:"system",content:sys},{role:"user",content:"Restructure:\n"+summary}],1500);
+      var parsed=parseJ(raw);if(!parsed||!parsed.nodes||parsed.nodes.length<3)throw new Error("Invalid response");
       graphNR.current=parsed.nodes;stackR.current[0].nodes=parsed.nodes;stackR.current[0].links=parsed.links||[];
-      // Handle demoted nodes - put them in their parent sub-brain caches
+      // Handle demoted nodes
       if(parsed.demoted&&parsed.demoted.length>0){
         parsed.demoted.forEach(function(d){
           if(!d.parent_id)return;
@@ -407,7 +408,8 @@ function Atlas(){
     try{
       var sub=cacheR.current.get(node.id);
       if(!sub){
-        var raw=await groqCall([{role:"system",content:"Generate sub-brain. Return ONLY valid JSON: {nodes:[{id,label,group,description,isHub}],links:[{source,target,label}]}. First node: isHub:true,id:"+node.id+",label:"+node.label+". 5-7 child nodes with id prefix "+node.id+"--. 6-10 links. Return ONLY JSON."},{role:"user",content:"Sub-brain for: "+node.label}],1200);
+        var sys="Generate a deep sub-brain for a knowledge node. Return ONLY valid JSON with nodes and links arrays. First node must have isHub true, use the node id and label provided. Generate 5-7 child nodes. Create 6-10 links. Return ONLY JSON.";
+        var raw=await groqCall([{role:"system",content:sys},{role:"user",content:"Sub-brain for: "+node.label+" - "+(node.description||"")}],1200);
         var parsed=parseJ(raw);if(!parsed)throw new Error("No JSON");
         var sn=(parsed.nodes||[]).map(function(n){return n.isHub?Object.assign({},n,{id:node.id,label:node.label,description:node.description,group:node.group,isHub:true}):n;});
         sub={nodes:sn,links:parsed.links||[]};cacheR.current.set(node.id,sub);
@@ -436,17 +438,17 @@ function Atlas(){
       var nodes=level.nodes;
       var ns=nodes.map(function(n){return "- "+n.label+": "+(n.description||"");}).join("\n");
       var ls=simLR.current.map(function(l){var sL=nodes.find(function(n){return n.id===l.source;});var tL=nodes.find(function(n){return n.id===l.target;});return(sL?sL.label:l.source)+"->"+(tL?tL.label:l.target);}).join(", ");
-      var sys="You are Atlas, the intellectual core of this mind. Direct, precise, deeply intelligent, occasionally dry. Speak as a genuine equal. Never fabricate — when uncertain say so plainly. "+depth+"Time: "+tstr+"\n\nKNOWLEDGE:\n"+ns+"\n\nCONNECTIONS: "+ls;
+      var sys="You are Atlas, the intellectual core of this mind. Direct, precise, deeply intelligent, occasionally dry. Speak as a genuine equal. Never fabricate. When uncertain say so plainly. "+depth+"Time: "+tstr+"\n\nKNOWLEDGE:\n"+ns+"\n\nCONNECTIONS: "+ls;
       var reply=await groqCall([{role:"system",content:sys}].concat(hist.map(function(m){return{role:m.role,content:m.content};})),1000);
       if(!reply)reply="No response.";
       setMsgs(hist.concat([{role:"assistant",content:reply}]));
       if(ve&&window.speechSynthesis){
         window.speechSynthesis.cancel();var u2=new SpeechSynthesisUtterance(reply.slice(0,350));u2.rate=0.82;u2.pitch=0.65;u2.volume=1.0;
-        var voices=window.speechSynthesis.getVoices();var pref=voices.find(function(v){return v.name.includes("Google UK English Male");})||voices.find(function(v){return v.name.includes("Daniel");})||voices.find(function(v){return v.lang==="en-GB";});
+        var voices=window.speechSynthesis.getVoices();var pref=voices.find(function(v){return v.name.includes("Google UK English Male");})||voices.find(function(v){return v.lang==="en-GB";});
         if(pref)u2.voice=pref;window.speechSynthesis.speak(u2);
       }
       if(reply&&reply!=="No response."){var rn=stackR.current[0].nodes;var rl=stackR.current[0].links||simLR.current;setTimeout(function(){learnFrom(msg,reply,rn,rl);},1500);}
-    }catch(e){setMsgs(hist.concat([{role:"assistant",content:"Error: "+e.message+" | Key: "+(window.__K__?"set ("+window.__K__.slice(0,8)+"...)":"NOT SET")}]));}
+    }catch(e){setMsgs(hist.concat([{role:"assistant",content:"Error: "+e.message}]));}
     finally{setIp(false);}
   },[ci,ip,msgs,ve]);
 
@@ -474,20 +476,16 @@ function Atlas(){
 
   var nc=selNode?PALETTE[selNode.group%PALETTE.length]:"#00d4ff";
   var inSub=bc.length>1;
-
   function dot(col,anim){return h("div",{style:{width:6,height:6,borderRadius:"50%",background:col,boxShadow:"0 0 8px "+col,animation:"blink "+(anim||"1.5s")+" ease-in-out infinite"}});}
-  function btn(txt,onClick,style){return h("button",Object.assign({onClick:onClick,style:Object.assign({background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"},style)},{}),txt);}
 
   return h("div",{style:{background:"#020712",height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden",userSelect:"none",fontFamily:"'Courier New',Courier,monospace",color:"#e2e8f0"}},
 
-    // Boot
     !bd&&h("div",{style:{position:"fixed",inset:0,background:"#020712",zIndex:100,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}},
       h("div",{style:{fontSize:30,letterSpacing:16,color:"#00d4ff",fontWeight:"bold",textShadow:"0 0 40px #00d4ff88"}},"A T L A S"),
       h("div",{style:{fontSize:8,color:"#1e3a5f",letterSpacing:4}},"NEURAL SYSTEMS ONLINE"),
       h("div",{style:{display:"flex",gap:6,marginTop:8}},[0,1,2,3,4].map(function(i){return h("div",{key:i,style:{width:4,height:4,borderRadius:"50%",background:"#00d4ff",animation:"blink "+(0.5+i*0.1)+"s ease-in-out infinite",animationDelay:i*0.1+"s"}});}))
     ),
 
-    // Header
     h("div",{style:{padding:"7px 14px",borderBottom:"1px solid rgba(0,212,255,0.09)",display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(0,0,0,0.6)",backdropFilter:"blur(14px)",flexShrink:0,zIndex:10}},
       h("div",{style:{display:"flex",alignItems:"center",gap:10}},
         h("div",{style:{display:"flex",gap:4}},dot("#00d4ff","1.5s"),dot("#a78bfa","1.9s"),dot("#34d399","2.3s")),
@@ -502,20 +500,18 @@ function Atlas(){
           h("div",{style:{width:5,height:5,borderRadius:"50%",background:ve?"#fbbf24":"#1e3a5f",boxShadow:ve?"0 0 7px #fbbf24":"none"}}),
           h("span",{style:{fontSize:7,color:ve?"#fbbf24":"#1e3a5f",letterSpacing:1}},ve?"MUTE":"SPEAK")
         ),
-        h("button",{onClick:resetKey,style:{background:"none",border:"none",cursor:"pointer",padding:0}},h("span",{style:{fontSize:7,color:"#334155",letterSpacing:1}},"KEY")),
+        h("button",{onClick:resetKey,style:{background:"none",border:"none",cursor:"pointer",padding:0}},h("span",{style:{fontSize:7,color:"#e2e8f0",letterSpacing:1}},"KEY")),
         h("span",{style:{fontSize:8,color:"#1e3a5f",letterSpacing:1}},"N",h("span",{style:{color:"#00d4ff"}},stats.nodes)," L",h("span",{style:{color:"#a78bfa"}},stats.links)),
         h("span",{style:{fontSize:7,color:ss==="saving"?"#fbbf24":ss==="synced"?"#34d399":"#1e3a5f",letterSpacing:1}},ss==="saving"?"● SAVING":ss==="synced"?"● SAVED":"● LOADING")
       )
     ),
 
-    // Breadcrumbs
     h("div",{style:{padding:"4px 14px",background:"rgba(0,0,0,0.4)",borderBottom:"1px solid rgba(0,212,255,0.06)",display:"flex",alignItems:"center",flexShrink:0,overflowX:"auto",minHeight:24}},
       bc.map(function(crumb,i){return h("div",{key:crumb.id,style:{display:"flex",alignItems:"center"}},
         i>0&&h("span",{style:{color:"#1e3a5f",fontSize:9,margin:"0 5px"}},"›"),
-        h("button",{onClick:function(){drillTo(i);},disabled:i===bc.length-1,style:{background:"none",border:"none",cursor:i===bc.length-1?"default":"pointer",padding:"2px 4px",fontFamily:"inherit",fontSize:9,letterSpacing:2,color:i===bc.length-1?"#00d4ff":"#2d4a6a",fontWeight:i===bc.length-1?"bold":"normal"}},crumb.label.toUpperCase())
+        h("button",{onClick:function(){drillTo(i);},disabled:i===bc.length-1,style:{background:"none",border:"none",cursor:i===bc.length-1?"default":"pointer",padding:"2px 4px",fontFamily:"inherit",fontSize:9,letterSpacing:2,color:i===bc.length-1?"#00d4ff":"#e2e8f0",fontWeight:i===bc.length-1?"bold":"normal"}},crumb.label.toUpperCase())
       );})),
 
-    // Viewport
     h("div",{style:{flex:1,position:"relative",overflow:"hidden"}},
       h("div",{ref:mountR,style:{width:"100%",height:"100%",cursor:vw==="graph"?"grab":"default",touchAction:"none"},
         onPointerDown:onPD,onPointerMove:onPM,onPointerUp:onPU,onPointerLeave:onPU,
@@ -528,9 +524,9 @@ function Atlas(){
       selNode&&h("div",{style:{position:"absolute",bottom:64,left:12,background:"rgba(2,7,18,0.96)",border:"1px solid "+nc,borderRadius:8,padding:"10px 14px",maxWidth:230,boxShadow:"0 0 28px "+nc+"1a",zIndex:5}},
         h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:5}},
           h("span",{style:{color:nc,fontSize:11,fontWeight:"bold",letterSpacing:1}},selNode.label.toUpperCase()),
-          h("button",{onClick:function(){setSelNode(null);},style:{color:"#334155",background:"none",border:"none",cursor:"pointer",fontSize:10,padding:0,fontFamily:"inherit"}},"✕")
+          h("button",{onClick:function(){setSelNode(null);},style:{color:"#e2e8f0",background:"none",border:"none",cursor:"pointer",fontSize:10,padding:0,fontFamily:"inherit"}},"✕")
         ),
-        h("div",{style:{fontSize:10,color:"#64748b",lineHeight:1.75,marginBottom:8}},selNode.description||"No description"),
+        h("div",{style:{fontSize:10,color:"#e2e8f0",lineHeight:1.75,marginBottom:8}},selNode.description||"No description"),
         h("div",{style:{display:"flex",gap:6}},
           h("button",{onClick:function(){drillInto(selNode);},disabled:ip,style:{flex:1,padding:"6px 8px",background:nc+"18",border:"1px solid "+nc+"44",color:nc,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},ip?"LOADING...":"⬡ EXPAND"),
           h("button",{onClick:function(){setVw("chat");setCi("Tell me about "+selNode.label+" and its connections");},style:{flex:1,padding:"6px 8px",background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.25)",color:"#a78bfa",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ QUERY")
@@ -538,20 +534,20 @@ function Atlas(){
       ),
 
       vw!=="graph"&&h("div",{style:{position:"fixed",top:0,left:0,right:0,bottom:56,background:"rgba(2,7,18,0.97)",backdropFilter:"blur(28px)",display:"flex",flexDirection:"column",zIndex:50}},
-        h("div",{style:{padding:"11px 16px",borderBottom:"1px solid rgba(0,212,255,0.07)",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+        h("div",{style:{padding:"11px 16px",borderBottom:"1px solid rgba(0,212,255,0.07)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}},
           h("span",{style:{color:"#00d4ff",fontSize:9,letterSpacing:3}},vw==="journal"?"// NEURAL GROWTH LOG":"// QUERY ATLAS"),
-          h("button",{onClick:function(){setVw("graph");},style:{color:"#334155",background:"none",border:"none",cursor:"pointer",fontSize:14,fontFamily:"inherit"}},"✕")
+          h("button",{onClick:function(){setVw("graph");},style:{color:"#e2e8f0",background:"none",border:"none",cursor:"pointer",fontSize:14,fontFamily:"inherit"}},"✕")
         ),
 
         vw==="journal"&&h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
-          h("div",{style:{padding:"6px 16px",borderBottom:"1px solid rgba(167,139,250,0.1)",display:"flex",justifyContent:"space-between"}},
+          h("div",{style:{padding:"6px 16px",borderBottom:"1px solid rgba(167,139,250,0.1)",display:"flex",justifyContent:"space-between",flexShrink:0}},
             h("span",{style:{fontSize:9,color:"#a78bfa",letterSpacing:2}},"NEURAL GROWTH LOG"),
             h("span",{style:{fontSize:8,color:"#1e3a5f"}},jn.length+" ENTRIES")
           ),
           jn.length===0
             ?h("div",{style:{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,padding:"24px"}},
-                h("div",{style:{fontSize:9,color:"#1e3a5f",letterSpacing:2,textAlign:"center"}},"NO ENTRIES YET"),
-                h("div",{style:{fontSize:9,color:"#0d1f35",textAlign:"center",lineHeight:1.8}},"Talk to Atlas. Every concept it discovers appears here. Tap to fly to it.")
+                h("div",{style:{fontSize:9,color:"#e2e8f0",letterSpacing:2,textAlign:"center"}},"NO ENTRIES YET"),
+                h("div",{style:{fontSize:9,color:"#e2e8f0",textAlign:"center",lineHeight:1.8}},"Talk to Atlas. Every concept it discovers appears here. Tap to fly to it.")
               )
             :h("div",{style:{flex:1,overflowY:"auto",padding:"8px 12px",display:"flex",flexDirection:"column",gap:8}},
                 jn.map(function(entry,i){return h("button",{key:i,onClick:function(){flyTo(entry.nodeId);},style:{background:entry.type==="reflected"?"rgba(167,139,250,0.05)":"rgba(0,212,255,0.04)",border:"1px solid "+(entry.type==="reflected"?"rgba(167,139,250,0.15)":"rgba(0,212,255,0.12)"),borderRadius:8,padding:"10px 12px",cursor:"pointer",fontFamily:"inherit",textAlign:"left",width:"100%"}},
@@ -559,33 +555,35 @@ function Atlas(){
                     h("span",{style:{color:entry.type==="reflected"?"#a78bfa":"#00d4ff",fontSize:11,fontWeight:"bold"}},entry.title.toUpperCase()),
                     h("span",{style:{fontSize:8,color:"#1e3a5f"}},entry.time)
                   ),
-                  h("div",{style:{fontSize:9,color:"#334155",lineHeight:1.7,marginBottom:4}},entry.detail),
-                  h("div",{style:{fontSize:7,color:entry.type==="reflected"?"rgba(167,139,250,0.35)":"rgba(0,212,255,0.35)",letterSpacing:2}},entry.type==="reflected"?"⟡ SELF-DISCOVERED":"⟡ LEARNED"," · TAP TO LOCATE")
+                  h("div",{style:{fontSize:9,color:"#cbd5e1",lineHeight:1.7,marginBottom:4}},entry.detail),
+                  h("div",{style:{fontSize:7,color:entry.type==="reflected"?"#a78bfa":"#00d4ff",letterSpacing:2}},entry.type==="reflected"?"⟡ SELF-DISCOVERED":"⟡ LEARNED"," · TAP TO LOCATE")
                 );})
               )
         ),
 
-        vw==="chat"&&h("div",{style:{flex:1,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}},
+        vw==="chat"&&h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minHeight:0}},
           h("div",{style:{flex:1,overflowY:"auto",padding:"12px 16px",display:"flex",flexDirection:"column",gap:10,minHeight:0}},
             msgs.map(function(m,i){return h("div",{key:i,style:{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}},
               m.role==="assistant"&&h("div",{style:{width:15,height:15,borderRadius:"50%",background:"#a78bfa15",border:"1px solid #a78bfa30",flexShrink:0,marginRight:7,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,color:"#a78bfa"}},"⟡"),
-              h("div",{style:{maxWidth:"86%",padding:"9px 12px",borderRadius:m.role==="user"?"10px 10px 2px 10px":"2px 10px 10px 10px",background:m.role==="user"?"rgba(0,212,255,0.06)":"rgba(167,139,250,0.05)",border:"1px solid "+(m.role==="user"?"rgba(0,212,255,0.16)":"rgba(167,139,250,0.12)"),fontSize:11,lineHeight:1.8,color:m.role==="user"?"#94a3b8":"#c4b5fd"}},m.content)
+              h("div",{style:{maxWidth:"86%",padding:"9px 12px",borderRadius:m.role==="user"?"10px 10px 2px 10px":"2px 10px 10px 10px",background:m.role==="user"?"rgba(0,212,255,0.06)":"rgba(167,139,250,0.05)",border:"1px solid "+(m.role==="user"?"rgba(0,212,255,0.16)":"rgba(167,139,250,0.12)"),fontSize:11,lineHeight:1.8,color:m.role==="user"?"#e2e8f0":"#c4b5fd"}},m.content)
             );}),
-            ip&&h("div",{style:{display:"flex",gap:8,alignItems:"center",color:"#a78bfa",fontSize:9,letterSpacing:2,opacity:0.5}},h("span",null,"⟳"),h("span",null,"THINKING"),[0,1,2].map(function(i){return h("div",{key:i,style:{width:3,height:3,borderRadius:"50%",background:"#a78bfa",animation:"blink "+(0.65+i*0.15)+"s ease-in-out infinite"}});})),
+            ip&&h("div",{style:{display:"flex",gap:8,alignItems:"center",color:"#a78bfa",fontSize:9,letterSpacing:2,opacity:0.5}},
+              h("span",null,"⟳"),h("span",null,"THINKING"),
+              [0,1,2].map(function(i){return h("div",{key:i,style:{width:3,height:3,borderRadius:"50%",background:"#a78bfa",animation:"blink "+(0.65+i*0.15)+"s ease-in-out infinite"}});})
+            ),
             h("div",{ref:cbR})
           ),
-          h("div",{style:{flexShrink:0,padding:"9px 12px",borderTop:"1px solid rgba(0,212,255,0.06)",background:"rgba(2,7,18,0.98)",display:"flex",alignItems:"center",gap:7}},
-            vs&&h("button",{onClick:toggleListen,style:{padding:"9px 11px",background:il?"rgba(248,113,113,0.12)":"rgba(248,113,113,0.05)",border:"1px solid rgba(248,113,113,"+(il?"0.38":"0.16")+")",color:il?"#f87171":"#3d5166",borderRadius:6,cursor:"pointer",fontSize:11,fontFamily:"inherit"}},il?"⬛":"🎙"),
+          h("div",{style:{flexShrink:0,padding:"9px 12px",borderTop:"1px solid rgba(0,212,255,0.06)",display:"flex",gap:7,background:"rgba(2,7,18,0.98)"}},
+            vs&&h("button",{onClick:toggleListen,style:{padding:"9px 11px",background:il?"rgba(248,113,113,0.12)":"rgba(248,113,113,0.05)",border:"1px solid rgba(248,113,113,"+(il?"0.38":"0.16")+")",color:il?"#f87171":"#e2e8f0",borderRadius:6,cursor:"pointer",fontSize:11,fontFamily:"inherit"}},il?"⬛":"🎙"),
             h("input",{value:tr2||ci,onChange:function(e){if(!il)setCi(e.target.value);},onKeyDown:function(e){if(e.key==="Enter")sendChat();},placeholder:il?"Listening...":"Ask Atlas anything...",style:{flex:1,padding:"9px 11px",background:"rgba(0,212,255,0.025)",border:"1px solid rgba(0,212,255,0.09)",borderRadius:6,color:"#e2e8f0",fontSize:11,fontFamily:"inherit",outline:"none"}}),
             h("button",{onClick:sendChat,disabled:ip,style:{padding:"9px 14px",background:"rgba(167,139,250,0.08)",border:"1px solid rgba(167,139,250,0.2)",color:"#a78bfa",borderRadius:6,cursor:ip?"wait":"pointer",fontFamily:"inherit",fontSize:13}},"→")
           )
         )
       ),
 
-      // Tab bar
       h("div",{style:{position:"fixed",bottom:0,left:0,right:0,height:56,display:"flex",alignItems:"stretch",borderTop:"1px solid rgba(0,212,255,0.07)",background:"rgba(2,7,18,0.97)",backdropFilter:"blur(20px)",zIndex:999}},
         [{id:"graph",label:"⬡  GRAPH"},{id:"journal",label:"⊕  JOURNAL"},{id:"chat",label:"⟡  QUERY"}].map(function(tab){
-          return h("button",{key:tab.id,onClick:function(){setVw(tab.id);},style:{flex:1,background:"transparent",border:"none",borderTop:"2px solid "+(vw===tab.id?"#00d4ff":"transparent"),color:vw===tab.id?"#00d4ff":"#2d4a6a",cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,transition:"all 0.2s",paddingTop:2}},tab.label);
+          return h("button",{key:tab.id,onClick:function(){setVw(tab.id);},style:{flex:1,background:"transparent",border:"none",borderTop:"2px solid "+(vw===tab.id?"#00d4ff":"transparent"),color:vw===tab.id?"#00d4ff":"#7dd3fc",cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,transition:"all 0.2s",paddingTop:2}},tab.label);
         })
       )
     )
