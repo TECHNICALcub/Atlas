@@ -154,7 +154,7 @@ function makeLabel(text,col){
   ctx.shadowColor=col;ctx.shadowBlur=16;ctx.fillStyle="#ffffff";ctx.fillText(text,160,36);
   var tex=new THREE.CanvasTexture(c);
   var mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});
-  var spr=new THREE.Sprite(mat);spr.scale.set(Math.max(60,text.length*9),18,1);return spr;
+  var spr=new THREE.Sprite(mat);spr.scale.set(Math.max(50,text.length*5.5),14,1);return spr;
 }
 function applyTB(q,dx,dy,s){
   var qH=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*s);
