@@ -283,9 +283,12 @@ function Atlas(){
     setSelNode(null);
   },[]);
 
-  React.useLayoutEffect(function(){
-    var mount=mountR.current||document.getElementById("atlas-canvas");if(!mount)return;
-    setVs('SpeechRecognition' in window||'webkitSpeechRecognition' in window);
+  ue(function(){
+    // Defer Three.js init to ensure DOM is fully ready
+    var initTimer=setTimeout(function(){
+      var mount=document.getElementById("atlas-canvas");
+      if(!mount){console.error("atlas-canvas not found");return;}
+      setVs('SpeechRecognition' in window||'webkitSpeechRecognition' in window);
     var W=mount.offsetWidth||window.innerWidth;
     var H=mount.offsetHeight||window.innerHeight;
     var scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x020712,0.0006);sceneR.current=scene;
@@ -370,7 +373,9 @@ function Atlas(){
       if(Date.now()-lastR2>3600000){localStorage.setItem("atlas_last_reflect",Date.now().toString());setTimeout(function(){selfReflect(SEED_NODES,SEED_LINKS);},7000);}
       setTimeout(function(){setBd(true);},1200);
     })();
-    return function(){cancelAnimationFrame(rafR.current);ren.dispose();if(mount.contains(ren.domElement))mount.removeChild(ren.domElement);window.removeEventListener("resize",onR);};
+      return function(){cancelAnimationFrame(rafR.current);ren.dispose();if(mount.contains(ren.domElement))mount.removeChild(ren.domElement);window.removeEventListener("resize",onR);};
+    },100);
+    return function(){clearTimeout(initTimer);cancelAnimationFrame(rafR.current);};
   },[]);
 
   // Incremental node addition - no full rebuild needed
