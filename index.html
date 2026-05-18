@@ -169,16 +169,17 @@ function parseJ(raw){var m=(raw||"").match(/\{[\s\S]*\}/);if(!m)return null;try{
 function nowTS(){var n=new Date();return n.getHours()+":"+String(n.getMinutes()).padStart(2,"0");}
 function getId(x){return typeof x==="object"&&x?x.id:x;}
 
-function buildStarNode(scene,node,links){
+function buildStarNode(scene,node,links,allNodes){
   var connCount=0;
   links.forEach(function(l){if(getId(l.source)===node.id||getId(l.target)===node.id)connCount++;});
   var ch=PALETTE[node.group%PALETTE.length];
   var connectedGroups=[];
+  var nodeList=allNodes||node._nodes||[];
   links.forEach(function(l){
     var ls=getId(l.source),lt=getId(l.target);
     if(ls===node.id||lt===node.id){
       var otherId=ls===node.id?lt:ls;
-      var other=node._nodes&&node._nodes.find(function(n){return n.id===otherId;});
+      var other=nodeList.find(function(n){return n.id===otherId;});
       if(other&&other.group!==node.group&&!connectedGroups.includes(other.group))connectedGroups.push(other.group);
     }
   });
@@ -278,9 +279,9 @@ function Atlas(){
     simNR.current=nodes.map(function(node){
       var ex=pm[node.id];
       var n=Object.assign({},node,{x:ex?ex.x:(Math.random()-0.5)*sp,y:ex?ex.y:(Math.random()-0.5)*sp,z:ex?ex.z:(Math.random()-0.5)*sp,vx:ex?ex.vx:0,vy:ex?ex.vy:0,vz:ex?ex.vz:0});
-      n._nodes=nodes;return n;
+      return n;
     });
-    simNR.current.forEach(function(node){buildStarNode(scene,node,links);});
+    simNR.current.forEach(function(node){buildStarNode(scene,node,links,simNR.current);});
     var result=buildLines(scene,simNR.current,links);
     linesR.current=result.mesh;simLR.current=result.fl;
     simAR.current=1.0;
@@ -626,7 +627,7 @@ function Atlas(){
         var scene=csceneR.current;if(!scene){setCload(false);return;}
         csimNR.current.forEach(function(n){removeStarNode(scene,n);});
         if(clinesR.current){scene.remove(clinesR.current);clinesR.current.geometry.dispose();clinesR.current.material.dispose();clinesR.current=null;}
-        nodes.forEach(function(n){n._nodes=nodes;buildStarNode(scene,n,links);});
+        nodes.forEach(function(n){buildStarNode(scene,n,links,nodes);});
         var result=buildLines(scene,nodes,links);
         clinesR.current=result.mesh;csimLR.current=result.fl;
         csimNR.current=nodes;csimAR.current=1.0;
