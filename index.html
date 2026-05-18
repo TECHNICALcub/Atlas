@@ -312,7 +312,12 @@ function Atlas(){
     };
     window.addEventListener("resize",onR);
     setTimeout(onR,300);
+    // Confirm Three.js is running - show node count on screen
+    var dbgEl=document.createElement("div");
+    dbgEl.style.cssText="position:fixed;top:50px;left:8px;color:lime;font-size:11px;font-family:monospace;z-index:9999;pointer-events:none;";
+    dbgEl.id="tdbg";document.body.appendChild(dbgEl);
     function animLoop(){
+      if(tickR.current%60===0){var el=document.getElementById("tdbg");if(el)el.textContent="3JS OK | nodes:"+simNR.current.length+" scene:"+sceneR.current.children.length;}
       rafR.current=requestAnimationFrame(animLoop);
       var t=tickR.current++;var tr=trR.current;
       if(!tr.dragging){tr.velDx*=0.96;tr.velDy*=0.96;}
