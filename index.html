@@ -33,19 +33,6 @@ html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:
   <div class="note">Get a free key at console.groq.com</div>
 </div>
 <div id="root" style="display:none;pointer-events:none"></div>
-<script>
-// Immediate test - fires before any CDN loads
-window.addEventListener("DOMContentLoaded",function(){
-  var t=document.createElement("div");
-  t.style.cssText="position:fixed;top:60px;left:8px;color:yellow;font-size:10px;font-family:monospace;z-index:99999;";
-  t.id="earlydbg";t.textContent="DOM READY";document.body.appendChild(t);
-});
-window.onerror=function(msg,src,line){
-  var t=document.getElementById("earlydbg");
-  if(t)t.textContent="JS ERROR: "+msg+" L"+line;
-  return false;
-};
-</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
