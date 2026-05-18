@@ -373,6 +373,40 @@ function Atlas(){
     return function(){cancelAnimationFrame(rafR.current);ren.dispose();if(mount.contains(ren.domElement))mount.removeChild(ren.domElement);window.removeEventListener("resize",onR);};
   },[rebuild]);
 
+  // Incremental node addition - no full rebuild needed
+  var addNodes=uc(function(newNodes,newLinks,allNodes,allLinks){
+    var scene=sceneR.current;if(!scene)return;
+    var fl=allLinks.map(function(l){return{source:getId(l.source),target:getId(l.target),label:l.label};});
+    newNodes.forEach(function(node){
+      var connCount=0;fl.forEach(function(l){if(l.source===node.id||l.target===node.id)connCount++;});
+      var ch=PALETTE[node.group%PALETTE.length];var col=new THREE.Color(ch);
+      var r=5+Math.min(connCount*1.4,12);node.r=r;
+      var existing=simNR.current.find(function(n){return n.id===node.id;});
+      if(existing)return;
+      var sp=200;
+      var simNode=Object.assign({},node,{x:(Math.random()-0.5)*sp,y:(Math.random()-0.5)*sp,z:(Math.random()-0.5)*sp,vx:0,vy:0,vz:0});
+      var mesh=new THREE.Mesh(new THREE.SphereGeometry(r,16,16),new THREE.MeshBasicMaterial({color:col}));
+      mesh.userData.nodeId=node.id;mesh.position.set(simNode.x,simNode.y,simNode.z);scene.add(mesh);simNode.mesh=mesh;
+      var glow=new THREE.Mesh(new THREE.SphereGeometry(r*2.2,10,10),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.06,blending:THREE.AdditiveBlending,depthWrite:false}));
+      glow.position.copy(mesh.position);scene.add(glow);simNode.glowMesh=glow;
+      var spr=makeLabel(node.label,ch);spr.position.set(simNode.x,simNode.y-r-14,simNode.z);scene.add(spr);simNode.labelSprite=spr;
+      simNR.current.push(simNode);
+    });
+    // Update links without full rebuild
+    if(newLinks.length>0){
+      if(linesR.current){scene.remove(linesR.current);linesR.current.geometry.dispose();linesR.current.material.dispose();linesR.current=null;}
+      var pos=new Float32Array(fl.length*6);var col2=new Float32Array(fl.length*6);
+      fl.forEach(function(l,i){var s=simNR.current.find(function(n){return n.id===l.source;});var t=simNR.current.find(function(n){return n.id===l.target;});if(!s||!t)return;var b=i*6;pos[b]=s.x;pos[b+1]=s.y;pos[b+2]=s.z;pos[b+3]=t.x;pos[b+4]=t.y;pos[b+5]=t.z;var sc=new THREE.Color(PALETTE[(s.group||0)%PALETTE.length]);var tc=new THREE.Color(PALETTE[(t.group||0)%PALETTE.length]);col2[b]=sc.r;col2[b+1]=sc.g;col2[b+2]=sc.b;col2[b+3]=tc.r;col2[b+4]=tc.g;col2[b+5]=tc.b;});
+      var geo=new THREE.BufferGeometry();geo.setAttribute("position",new THREE.BufferAttribute(pos,3));geo.setAttribute("color",new THREE.BufferAttribute(col2,3));
+      var lm=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.28,blending:THREE.AdditiveBlending,depthWrite:false}));
+      scene.add(lm);linesR.current=lm;
+    }
+    simLR.current=fl;
+    simAR.current=Math.max(simAR.current,0.3);
+    var subCount=0;cacheR.current.forEach(function(b){subCount+=b.nodes.filter(function(n){return !n.isHub;}).length;});
+    setSt({nodes:allNodes.length,links:fl.length,sub:subCount});
+  },[]);
+
   ue(function(){cbR.current&&cbR.current.scrollIntoView({behavior:"smooth"});},[msgs]);
 
   var saveBrain=uc(async function(nodes,links){
@@ -421,7 +455,7 @@ function Atlas(){
       var nl=(p.links||[]).filter(function(l){return !eks.has(l.source+"--"+l.target);});
       var an=nodes.concat(nn);var al2=links.concat(nl);
       stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;
-      rebuild(an,al2,false);
+      addNodes(nn,nl,an,al2);
       var t=nowTS();nn.forEach(function(n){setJn(function(prev){return [{time:t,type:"reflected",title:n.label,detail:n.description||"Self-discovered bridge concept",nodeId:n.id}].concat(prev.slice(0,199));});});
       if(saveR.current)saveR.current(an,al2);
     }).catch(function(e){console.error(e);}).finally(function(){setAl(false);});
@@ -447,7 +481,7 @@ function Atlas(){
       });
       var an=nodes.concat(rootNN);var al2=links.concat(nl);
       stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;
-      rebuild(an,al2,false);
+      addNodes(rootNN,nl,an,al2);
       childNN.forEach(function(item){
         var pid=item.parent.id;var ex=cacheR.current.get(pid)||{nodes:[],links:[]};
         if(!ex.nodes.find(function(x){return x.id===item.node.id;})){ex.nodes.push(item.node);ex.links.push({source:pid,target:item.node.id,label:"includes"});cacheR.current.set(pid,ex);}
