@@ -368,6 +368,10 @@ function Atlas(){
     return function(){cancelAnimationFrame(rafR.current);ren.dispose();if(mount.contains(ren.domElement))mount.removeChild(ren.domElement);window.removeEventListener("resize",onR);};
   },[rebuild]);
 
+  ue(function(){
+    var safety=setTimeout(function(){setBd(true);setSs("synced");},8000);
+    return function(){clearTimeout(safety);};
+  },[]);
   ue(function(){cbR.current&&cbR.current.scrollIntoView({behavior:"smooth"});},[msgs]);
 
   var saveBrain=uc(async function(nodes,links){
