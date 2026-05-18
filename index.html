@@ -154,6 +154,37 @@ function makeLabel(text,col){
 }
 function applyTB(q,dx,dy,s){var qH=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*s);var ax=new THREE.Vector3(1,0,0).applyQuaternion(q);var qV=new THREE.Quaternion().setFromAxisAngle(ax,-dy*s);q.premultiply(qH).premultiply(qV).normalize();}
 function applyCAM(cam,q,r){var p=new THREE.Vector3(0,0,r).applyQuaternion(q);var u=new THREE.Vector3(0,1,0).applyQuaternion(q);cam.position.copy(p);cam.up.copy(u);cam.lookAt(0,0,0);}
+// ── Shared brain network ─────────────────────────────────
+async function shareNode(node) {
+  try {
+    var entry = {
+      id: (window.__K__?window.__K__.slice(4,12):"anon")+"-"+node.id,
+      node_id: node.id,
+      label: node.label,
+      description: node.description||"",
+      group: node.group||0,
+      shared_by: window.__K__?window.__K__.slice(4,12):"anon",
+      shared_at: new Date().toISOString()
+    };
+    await fetch(SUPABASE_URL+"/rest/v1/atlas_shared", {
+      method:"POST",
+      headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},
+      body:JSON.stringify(entry)
+    });
+    return true;
+  } catch(e) { return false; }
+}
+
+async function getSharedNodes() {
+  try {
+    var res = await fetch(SUPABASE_URL+"/rest/v1/atlas_shared?select=*&order=shared_at.desc&limit=50", {
+      headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+    });
+    var rows = await res.json();
+    return Array.isArray(rows) ? rows : [];
+  } catch(e) { return []; }
+}
+
 async function groqCall(msgs,maxTok){
   var res=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__K__},body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:maxTok||1000,messages:msgs})});
   var d=await res.json();
@@ -184,6 +215,8 @@ function Atlas(){
   var _st=u({nodes:SEED_NODES.length,links:SEED_LINKS.length});var stats=_st[0];var setSt=_st[1];
   var _al=u(false);var al=_al[0];var setAl=_al[1];
   var _jn=u([]);var jn=_jn[0];var setJn=_jn[1];
+  var _nt=u([]);var netNodes=_nt[0];var setNetNodes=_nt[1];
+  var _nv=u("journal");var journalView=_nv[0];var setJournalView=_nv[1];
   var _ir=u(false);var ir=_ir[0];var setIr=_ir[1];
   var _bd=u(false);var bd=_bd[0];var setBd=_bd[1];
   var _bc=u([{id:"root",label:"ATLAS"}]);var bc=_bc[0];var setBc=_bc[1];
@@ -282,7 +315,7 @@ function Atlas(){
       try{
         // Try all possible storage keys and use the largest brain found
         var candidates=[];
-        var k1=await atlasStorage.get("atlas-brain");
+        var bkey="atlas-brain-"+(window.__K__?window.__K__.slice(4,12):"default");var k1=await atlasStorage.get(bkey);
         if(k1&&k1.value){try{var p1=JSON.parse(k1.value);if(p1.nodes&&p1.nodes.length>0)candidates.push(p1);}catch(e){}}
         // Check old localStorage keys directly
         var oldKeys=["a__atlas-brain","atlas__atlas-brain","atlas-brain","atlas__brain"];
@@ -319,7 +352,7 @@ function Atlas(){
   ue(function(){cbR.current&&cbR.current.scrollIntoView({behavior:"smooth"});},[msgs]);
 
   var saveBrain=uc(async function(nodes,links){
-    try{setSs("saving");var sb={};cacheR.current.forEach(function(v,k){sb[k]=v;});await atlasStorage.set("atlas-brain",JSON.stringify({nodes:nodes,links:links,subBrains:sb}));setSs("synced");}catch(e){setSs("synced");}
+    try{setSs("saving");var sb={};cacheR.current.forEach(function(v,k){sb[k]=v;});var bkey="atlas-brain-"+(window.__K__?window.__K__.slice(4,12):"default");await atlasStorage.set(bkey,JSON.stringify({nodes:nodes,links:links,subBrains:sb}));setSs("synced");}catch(e){setSs("synced");}
   },[]);
   ue(function(){saveR.current=saveBrain;},[saveBrain]);
 
@@ -401,15 +434,7 @@ function Atlas(){
     try{
       var summary=nodes.map(function(n){return n.id+":"+n.label;}).join("\n");
       // Aggressive META prompt - demote specific nodes to sub-brains
-      var sys="You are performing a radical metacognitive restructuring of a knowledge graph. "
-        +"Identify which nodes are genuinely ROOT-LEVEL (broad, foundational, 8-15 nodes max) "
-        +"versus OVERLY SPECIFIC (should be nested inside a root node as sub-concepts). "
-        +"Be ruthless. Return ONLY valid JSON with: "
-        +"nodes array (root nodes only), "
-        +"links array, "
-        +"demoted array where each item has id, label, parent_id, reason fields, "
-        +"reason string. "
-        +"All knowledge is preserved - demoted nodes go into sub-brains. Return ONLY JSON.";
+      var sys="You are reorganising a knowledge graph hierarchy. CRITICAL: include ALL existing nodes - never remove any. Decide for each: ROOT-LEVEL (broad, foundational, 8-15 max) or nested sub-concept. Return ONLY valid JSON: nodes array (ALL nodes), links array, demoted array (each with id,label,parent_id,reason), reason string. parent_id must be a valid root node id. NEVER omit nodes. Return ONLY JSON."
       var raw=await groqCall([{role:"system",content:sys},{role:"user",content:"Restructure:\n"+summary}],1500);
       var parsed=parseJ(raw);if(!parsed||!parsed.nodes||parsed.nodes.length<3)throw new Error("Invalid response");
       graphNR.current=parsed.nodes;stackR.current[0].nodes=parsed.nodes;stackR.current[0].links=parsed.links||[];
@@ -557,7 +582,7 @@ function Atlas(){
         h("div",{style:{fontSize:10,color:"#e2e8f0",lineHeight:1.5,marginBottom:8,maxHeight:40,overflow:"hidden"}},selNode.description||"No description"),
         h("div",{style:{display:"flex",gap:6}},
           h("button",{onClick:function(){drillInto(selNode);},disabled:ip,style:{flex:1,padding:"6px 8px",background:nc+"18",border:"1px solid "+nc+"44",color:nc,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},ip?"LOADING...":"⬡ EXPAND"),
-          h("button",{onClick:function(){setVw("chat");setCi("Tell me about "+selNode.label+" and its connections");},style:{flex:1,padding:"6px 8px",background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.25)",color:"#a78bfa",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ QUERY")
+          h("button",{onClick:function(){shareNode(selNode).then(function(ok){alert(ok?"⟡ "+selNode.label+" shared to the network!":"Share failed - try again");});},style:{flex:1,padding:"6px 8px",background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.25)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ SHARE")
         )
       ),
 
@@ -569,10 +594,39 @@ function Atlas(){
 
         vw==="journal"&&h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
           h("div",{style:{padding:"6px 16px",borderBottom:"1px solid rgba(167,139,250,0.1)",display:"flex",justifyContent:"space-between",flexShrink:0}},
-            h("span",{style:{fontSize:9,color:"#a78bfa",letterSpacing:2}},"NEURAL GROWTH LOG"),
-            h("span",{style:{fontSize:8,color:"#1e3a5f"}},jn.length+" ENTRIES")
+            h("div",{style:{display:"flex",gap:12}},
+              h("button",{onClick:function(){setJournalView("journal");},style:{background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,color:journalView==="journal"?"#a78bfa":"#475569",borderBottom:journalView==="journal"?"1px solid #a78bfa":"none",paddingBottom:2}},"MY BRAIN"),
+              h("button",{onClick:function(){setJournalView("network");getSharedNodes().then(function(rows){setNetNodes(rows);});},style:{background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,color:journalView==="network"?"#34d399":"#475569",borderBottom:journalView==="network"?"1px solid #34d399":"none",paddingBottom:2}},"NETWORK")
+            ),
+            h("span",{style:{fontSize:8,color:"#475569"}},journalView==="journal"?jn.length+" ENTRIES":netNodes.length+" SHARED")
           ),
-          jn.length===0
+          journalView==="network"
+            ? h("div",{style:{flex:1,overflowY:"auto",padding:"8px 12px",display:"flex",flexDirection:"column",gap:8}},
+                netNodes.length===0
+                  ? h("div",{style:{padding:"24px",textAlign:"center"}},
+                      h("div",{style:{fontSize:9,color:"#e2e8f0",letterSpacing:2,marginBottom:8}},"NO SHARED NODES YET"),
+                      h("div",{style:{fontSize:9,color:"#e2e8f0",lineHeight:1.8}},"Tap SHARE on any node to contribute to the network.")
+                    )
+                  : netNodes.map(function(row,i){
+                      return h("div",{key:i,style:{background:"rgba(52,211,153,0.05)",border:"1px solid rgba(52,211,153,0.15)",borderRadius:8,padding:"10px 12px"}},
+                        h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
+                          h("span",{style:{color:"#34d399",fontSize:11,fontWeight:"bold"}},(row.label||"").toUpperCase()),
+                          h("span",{style:{fontSize:8,color:"#e2e8f0"}},"from "+row.shared_by)
+                        ),
+                        h("div",{style:{fontSize:9,color:"#e2e8f0",lineHeight:1.7,marginBottom:6}},row.description||""),
+                        h("button",{onClick:function(){
+                          var nn={id:row.node_id,label:row.label,group:row.group||0,description:row.description||""};
+                          var nodes=graphNR.current;var links=stackR.current[0].links||[];
+                          if(!nodes.find(function(n){return n.id===nn.id;})){
+                            var an=nodes.concat([nn]);stackR.current[0].nodes=an;graphNR.current=an;rebuild(an,links,false);
+                            if(saveR.current)saveR.current(an,links);
+                          }
+                          setNetNodes(function(prev){return prev.filter(function(r){return r.node_id!==row.node_id;});});
+                        },style:{padding:"5px 10px",background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.3)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ ABSORB INTO BRAIN")
+                      );
+                    })
+              )
+            : jn.length===0
             ?h("div",{style:{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,padding:"24px"}},
                 h("div",{style:{fontSize:9,color:"#e2e8f0",letterSpacing:2,textAlign:"center"}},"NO ENTRIES YET"),
                 h("div",{style:{fontSize:9,color:"#e2e8f0",textAlign:"center",lineHeight:1.8}},"Talk to Atlas. Every concept it discovers appears here. Tap to fly to it.")
