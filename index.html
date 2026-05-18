@@ -148,13 +148,15 @@ window.addEventListener("load",function(){
 });
 
 function makeLabel(text,col){
-  var c=document.createElement("canvas");c.width=320;c.height=56;
-  var ctx=c.getContext("2d");ctx.clearRect(0,0,320,56);
-  ctx.font="bold 20px 'Courier New',monospace";ctx.textAlign="center";
-  ctx.shadowColor=col;ctx.shadowBlur=16;ctx.fillStyle="#ffffff";ctx.fillText(text,160,36);
+  var fontSize=text.length>14?14:text.length>10?16:18;
+  var cw=Math.max(128,text.length*fontSize*0.65);
+  var c=document.createElement("canvas");c.width=cw;c.height=40;
+  var ctx=c.getContext("2d");ctx.clearRect(0,0,cw,40);
+  ctx.font="bold "+fontSize+"px 'Courier New',monospace";ctx.textAlign="center";
+  ctx.shadowColor=col;ctx.shadowBlur=12;ctx.fillStyle="#ffffff";ctx.fillText(text,cw/2,26);
   var tex=new THREE.CanvasTexture(c);
   var mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});
-  var spr=new THREE.Sprite(mat);spr.scale.set(Math.max(50,text.length*5.5),14,1);return spr;
+  var spr=new THREE.Sprite(mat);spr.scale.set(Math.max(40,text.length*4.5),11,1);return spr;
 }
 function applyTB(q,dx,dy,s){
   var qH=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*s);
