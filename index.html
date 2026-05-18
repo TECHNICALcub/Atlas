@@ -293,7 +293,18 @@ function Atlas(){
 
   // ── Three.js init (personal) ─────────────────────────────
   ue(function(){
-    var mount=mountR.current;if(!mount)return;
+    var mount=mountR.current;
+    if(!mount||mount.offsetWidth===0){
+      // Ref not ready yet - retry after paint
+      var retryTimer=setTimeout(function(){
+        var m=mountR.current;
+        if(m&&m.offsetWidth>0&&!sceneR.current){
+          // Re-trigger by forcing a re-render won't work here
+          // Just wait for the next useEffect call
+        }
+      },500);
+      return function(){clearTimeout(retryTimer);};
+    }
     setVs('SpeechRecognition' in window||'webkitSpeechRecognition' in window);
     var W=mount.offsetWidth||window.innerWidth,H=mount.offsetHeight||window.innerHeight;
     var scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x020712,0.0006);sceneR.current=scene;
@@ -706,7 +717,7 @@ function Atlas(){
         h("button",{onClick:function(){drillTo(i);},disabled:i===bc.length-1,style:{background:"none",border:"none",cursor:i===bc.length-1?"default":"pointer",padding:"2px 4px",fontFamily:"inherit",fontSize:9,letterSpacing:2,color:i===bc.length-1?"#00d4ff":"#7dd3fc",fontWeight:i===bc.length-1?"bold":"normal"}},crumb.label.toUpperCase())
       );})),
 
-    h("div",{style:{flex:1,position:"relative",overflow:"hidden"}},
+    h("div",{style:{position:"relative",overflow:"hidden",height:"calc(100vh - 90px)"}},
       h("div",{ref:mountR,style:{width:"100%",height:"100%",cursor:"grab",touchAction:"none",position:"absolute",top:0,left:0,opacity:brainMode==="personal"?1:0,pointerEvents:brainMode==="personal"?"auto":"none"},
         onPointerDown:onPD,onPointerMove:onPM,onPointerUp:onPU,onPointerLeave:onPU,
         onWheel:onWhl,onTouchStart:onTS,onTouchMove:onTM,onTouchEnd:onTE}),
