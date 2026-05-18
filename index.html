@@ -310,6 +310,13 @@ function Atlas(){
     var onR=function(){var W2=mount.offsetWidth,H2=mount.offsetHeight;ren.setSize(W2,H2);cam.aspect=W2/H2;cam.updateProjectionMatrix();};
     window.addEventListener("resize",onR);
     setTimeout(function(){onR();},200);
+    // Debug: show canvas info
+    var dbg=document.createElement("div");
+    dbg.id="atlasdbg";
+    dbg.style.cssText="position:fixed;top:40px;left:8px;color:#00d4ff;font-size:9px;font-family:monospace;z-index:9999;pointer-events:none;background:rgba(0,0,0,0.5);padding:4px 8px;border-radius:4px;";
+    dbg.textContent="W:"+W+" H:"+H+" canvas:"+ren.domElement.width+"x"+ren.domElement.height;
+    document.body.appendChild(dbg);
+    setTimeout(function(){var d=document.getElementById("atlasdbg");if(d)d.remove();},8000);
     function animLoop(){
       rafR.current=requestAnimationFrame(animLoop);var t=tickR.current++;var tr=trR.current;
       if(!tr.dragging){tr.velDx*=0.96;tr.velDy*=0.96;}
