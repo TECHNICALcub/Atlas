@@ -256,7 +256,7 @@ function Atlas(){
   var _il=u(false);var il=_il[0];var setIl=_il[1];
   var _tr=u("");var tr2=_tr[0];var setTr=_tr[1];
   var _csel=u(null);var csel=_csel[0];var setCsel=_csel[1];
-  var _bm=u('personal');var brainMode=_bm[0];var setBrainMode=_bm[1];
+  var _co=u(false);var showCollective=_co[0];var setShowCollective=_co[1];
   var _cload=u(false);var cload=_cload[0];var setCload=_cload[1];
 
   ue(function(){selIdR.current=selNode?selNode.id:null;},[selNode]);
@@ -575,7 +575,7 @@ function Atlas(){
 
   // ── Collective brain ─────────────────────────────────────
   ue(function(){
-    if(brainMode!=="collective"||!cmountR.current||csceneR.current)return;
+    if(!showCollective||!cmountR.current||csceneR.current)return;
     var mount=cmountR.current;
     var W=mount.offsetWidth,H=mount.offsetHeight||500;
     var scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x020712,0.0007);csceneR.current=scene;
@@ -616,7 +616,7 @@ function Atlas(){
     cAnim();
     loadCollective();
     return function(){cancelAnimationFrame(crafR.current);ren.dispose();if(mount.contains(ren.domElement))mount.removeChild(ren.domElement);};
-  },[brainMode]);
+  },[showCollective]);
 
   function loadCollective(){
     setCload(true);
@@ -687,10 +687,7 @@ function Atlas(){
       h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
         al&&h("span",{style:{fontSize:7,color:"#a78bfa",letterSpacing:1,animation:"blink 0.6s ease-in-out infinite"}},"⟡ LEARNING"),
         ir&&h("span",{style:{fontSize:7,color:"#fbbf24",letterSpacing:1,animation:"blink 0.4s ease-in-out infinite"}},"⟡ THINKING"),
-        h("button",{onClick:function(){
-          if(brainMode==="personal"){setBrainMode("collective");setTimeout(function(){if(!csceneR.current)loadCollective();},100);}
-          else{setBrainMode("personal");}
-        },style:{background:brainMode==="collective"?"rgba(52,211,153,0.15)":"none",border:"1px solid rgba(52,211,153,"+(brainMode==="collective"?"0.5":"0.25")+")",borderRadius:3,cursor:"pointer",padding:"2px 7px",color:"#34d399",fontSize:7,letterSpacing:1,fontFamily:"inherit",fontWeight:brainMode==="collective"?"bold":"normal"}},brainMode==="collective"?"PERSONAL":"COLLECTIVE"),
+        h("button",{onClick:function(){setShowCollective(true);},style:{background:"none",border:"1px solid rgba(52,211,153,0.25)",borderRadius:3,cursor:"pointer",padding:"2px 7px",color:"#34d399",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"COLLECTIVE"),
         h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212,255,0.2)",borderRadius:3,cursor:"pointer",padding:"1px 5px",color:"#00d4ff",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"UNFOLD"),
         vs&&h("button",{onClick:function(){setVe(function(v){return !v;});},style:{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}},
           h("div",{style:{width:5,height:5,borderRadius:"50%",background:ve?"#fbbf24":"#1e3a5f",boxShadow:ve?"0 0 7px #fbbf24":"none"}}),
@@ -709,16 +706,12 @@ function Atlas(){
       );})),
 
     h("div",{style:{flex:1,position:"relative",overflow:"hidden",minHeight:0}},
-      h("div",{ref:mountR,style:{width:"100%",height:"100%",cursor:"grab",touchAction:"none",position:"absolute",top:0,left:0,opacity:brainMode==="personal"?1:0,pointerEvents:brainMode==="personal"?"auto":"none"},
+      h("div",{ref:mountR,style:{width:"100%",height:"100%",cursor:vw==="graph"?"grab":"default",touchAction:"none"},
         onPointerDown:onPD,onPointerMove:onPM,onPointerUp:onPU,onPointerLeave:onPU,
         onWheel:onWhl,onTouchStart:onTS,onTouchMove:onTM,onTouchEnd:onTE}),
-      h("div",{ref:cmountR,style:{width:"100%",height:"100%",cursor:"grab",touchAction:"none",position:"absolute",top:0,left:0,opacity:brainMode==="collective"?1:0,pointerEvents:brainMode==="collective"?"auto":"none"},
-        onPointerDown:onCPD,onPointerMove:onCPM,onPointerUp:onCPU,onPointerLeave:onCPU,
-        onWheel:onCWhl,onTouchStart:onCTS,onTouchMove:onCTM,onTouchEnd:onCTE}),
 
-      brainMode==="collective"&&cload&&h("div",{style:{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",color:"#34d399",fontSize:9,letterSpacing:2,zIndex:10}},"⟡ CONNECTING TO COLLECTIVE..."),
-      brainMode==="collective"&&h("button",{onClick:function(){setBrainMode("personal");},style:{position:"absolute",top:10,right:12,padding:"5px 10px",background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.25)",color:"#34d399",borderRadius:20,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2,zIndex:6}},"↺ REFRESH COLLECTIVE"),
-      inSub&&vw==="graph"&&brainMode==="personal"&&h("button",{onClick:drillOut,style:{position:"absolute",top:10,left:12,padding:"6px 12px",background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",color:"#00d4ff",borderRadius:20,cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,zIndex:6}},"← BACK"),
+
+      inSub&&vw==="graph"&&h("button",{onClick:drillOut,style:{position:"absolute",top:10,left:12,padding:"6px 12px",background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",color:"#00d4ff",borderRadius:20,cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,zIndex:6}},"← BACK"),
 
       tr2&&h("div",{style:{position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",background:"rgba(248,113,113,0.08)",border:"1px solid rgba(248,113,113,0.25)",borderRadius:20,padding:"6px 14px",fontSize:10,color:"#fca5a5",fontStyle:"italic",whiteSpace:"nowrap"}},'"'+tr2+'"'),
 
@@ -733,23 +726,7 @@ function Atlas(){
           h("button",{onClick:function(){shareNode(selNode).then(function(ok){alert(ok?"⟡ "+selNode.label+" shared to the collective!":"Share failed");});},style:{flex:1,padding:"6px 8px",background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.25)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ SHARE")
         )
       ),
-      brainMode==="collective"&&csel&&h("div",{style:{position:"fixed",bottom:64,left:8,right:8,background:"rgba(2,7,18,0.98)",border:"1px solid rgba(52,211,153,0.4)",borderRadius:8,padding:"10px 14px",zIndex:60}},
-        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:5}},
-          h("span",{style:{color:"#34d399",fontSize:11,fontWeight:"bold"}},(csel.label||"").toUpperCase()),
-          h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
-            h("span",{style:{fontSize:8,color:"#e2e8f0"}},"shared by "+(csel.shared_by||"unknown")),
-            h("button",{onClick:function(){setCsel(null);},style:{color:"#475569",background:"none",border:"none",cursor:"pointer",fontSize:10,fontFamily:"inherit"}},"✕")
-          )
-        ),
-        h("div",{style:{fontSize:10,color:"#e2e8f0",lineHeight:1.5,marginBottom:8,maxHeight:40,overflow:"hidden"}},csel.description||""),
-        h("button",{onClick:function(){
-          var nn=Object.assign({},csel);
-          ["mesh","innerMesh","glowMesh","haloMesh","labelSprite","shared_by","_nodes"].forEach(function(k){delete nn[k];});
-          var nodes=graphNR.current;var links=stackR.current[0].links||[];
-          if(!nodes.find(function(n){return n.id===nn.id;})){var an=nodes.concat([nn]);stackR.current[0].nodes=an;graphNR.current=an;rebuild(an,links,false);if(saveR.current)saveR.current(an,links);}
-          setCsel(null);setBrainMode("personal");
-        },style:{width:"100%",padding:"6px",background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.3)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ ABSORB INTO MY BRAIN")
-      ),
+
 
       vw!=="graph"&&h("div",{style:{position:"fixed",top:0,left:0,right:0,bottom:56,background:"rgba(2,7,18,0.97)",backdropFilter:"blur(28px)",display:"flex",flexDirection:"column",zIndex:50}},
         h("div",{style:{padding:"11px 16px",borderBottom:"1px solid rgba(0,212,255,0.07)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}},
@@ -799,6 +776,39 @@ function Atlas(){
             vs&&h("button",{onClick:toggleListen,style:{padding:"9px 11px",background:il?"rgba(248,113,113,0.12)":"rgba(248,113,113,0.05)",border:"1px solid rgba(248,113,113,"+(il?"0.38":"0.16")+")",color:il?"#f87171":"#475569",borderRadius:6,cursor:"pointer",fontSize:11,fontFamily:"inherit"}},il?"⬛":"🎙"),
             h("input",{value:tr2||ci,onChange:function(e){if(!il)setCi(e.target.value);},onKeyDown:function(e){if(e.key==="Enter")sendChat();},placeholder:il?"Listening...":"Ask Atlas anything...",style:{flex:1,padding:"9px 11px",background:"rgba(0,212,255,0.025)",border:"1px solid rgba(0,212,255,0.09)",borderRadius:6,color:"#e2e8f0",fontSize:11,fontFamily:"inherit",outline:"none"}}),
             h("button",{onClick:sendChat,disabled:ip,style:{padding:"9px 14px",background:"rgba(167,139,250,0.08)",border:"1px solid rgba(167,139,250,0.2)",color:"#a78bfa",borderRadius:6,cursor:ip?"wait":"pointer",fontFamily:"inherit",fontSize:13}},"→")
+          )
+        )
+      ),
+
+      showCollective&&h("div",{style:{position:"fixed",inset:0,background:"#020712",zIndex:200,display:"flex",flexDirection:"column"}},
+        h("div",{style:{padding:"10px 16px",borderBottom:"1px solid rgba(52,211,153,0.15)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,background:"rgba(0,0,0,0.6)"}},
+          h("span",{style:{color:"#34d399",fontSize:10,letterSpacing:4,fontWeight:"bold"}},"COLLECTIVE BRAIN"),
+          h("div",{style:{display:"flex",gap:10,alignItems:"center"}},
+            cload&&h("span",{style:{fontSize:8,color:"#34d399",letterSpacing:1,animation:"blink 0.6s ease-in-out infinite"}},"⟡ LOADING"),
+            h("button",{onClick:function(){loadCollective();},style:{background:"none",border:"1px solid rgba(52,211,153,0.2)",borderRadius:3,cursor:"pointer",padding:"2px 8px",color:"#34d399",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"↺ REFRESH"),
+            h("button",{onClick:function(){setShowCollective(false);csceneR.current=null;},style:{background:"none",border:"1px solid rgba(248,113,113,0.2)",borderRadius:3,cursor:"pointer",padding:"2px 8px",color:"#f87171",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"✕ CLOSE")
+          )
+        ),
+        h("div",{style:{flex:1,position:"relative"}},
+          h("div",{ref:cmountR,style:{width:"100%",height:"100%",cursor:"grab",touchAction:"none"},
+            onPointerDown:onCPD,onPointerMove:onCPM,onPointerUp:onCPU,onPointerLeave:onCPU,
+            onWheel:onCWhl,onTouchStart:onCTS,onTouchMove:onCTM,onTouchEnd:onCTE}),
+          csel&&h("div",{style:{position:"absolute",bottom:8,left:8,right:8,background:"rgba(2,7,18,0.97)",border:"1px solid rgba(52,211,153,0.4)",borderRadius:8,padding:"10px 14px",zIndex:5}},
+            h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
+              h("span",{style:{color:"#34d399",fontSize:11,fontWeight:"bold"}},(csel.label||"").toUpperCase()),
+              h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
+                h("span",{style:{fontSize:8,color:"#e2e8f0"}},"from "+(csel.shared_by||"unknown")),
+                h("button",{onClick:function(){setCsel(null);},style:{color:"#475569",background:"none",border:"none",cursor:"pointer",fontSize:10,fontFamily:"inherit"}},"✕")
+              )
+            ),
+            h("div",{style:{fontSize:9,color:"#e2e8f0",lineHeight:1.7,marginBottom:8}},csel.description||""),
+            h("button",{onClick:function(){
+              var nn=Object.assign({},csel);
+              ["mesh","innerMesh","glowMesh","haloMesh","labelSprite","shared_by","_nodes"].forEach(function(k){delete nn[k];});
+              var nodes=graphNR.current;var links=stackR.current[0].links||[];
+              if(!nodes.find(function(n){return n.id===nn.id;})){var an=nodes.concat([nn]);stackR.current[0].nodes=an;graphNR.current=an;rebuild(an,links,false);if(saveR.current)saveR.current(an,links);}
+              setCsel(null);setShowCollective(false);csceneR.current=null;
+            },style:{width:"100%",padding:"7px",background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.3)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ ABSORB INTO MY BRAIN")
           )
         )
       ),
