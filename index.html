@@ -195,7 +195,7 @@ async function groqCall(msgs,maxTok){
 }
 function parseJ(raw){var m=(raw||"").match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0]);}catch(e){return null;}}
 function nowTS(){var n=new Date();return n.getHours()+":"+String(n.getMinutes()).padStart(2,"0");}
-function getId(x){return typeof x==="object"&&x?x.id:x;}
+function getId(x){var id=typeof x==="object"&&x?x.id:x;return id!==undefined&&id!==null?String(id):id;}
 
 function Atlas(){
   var h=React.createElement;
@@ -345,9 +345,9 @@ function Atlas(){
       ns.forEach(function(node){
         if(!node.mesh)return;
         var isSel=node.id===sid;
-        var pulse=1+(isSel?0.18:0.07)*Math.sin(t*0.04+node.id.charCodeAt(0)*0.5);
+        var pulse=1+(isSel?0.18:0.07)*Math.sin(t*0.04+String(node.id).charCodeAt(0)*0.5);
         node.mesh.position.set(node.x,node.y,node.z);node.mesh.scale.setScalar(pulse);
-        if(node.glowMesh){node.glowMesh.position.set(node.x,node.y,node.z);node.glowMesh.scale.setScalar(pulse*(isSel?2.0:1.2));node.glowMesh.material.opacity=isSel?0.18:0.06+0.03*Math.sin(t*0.03+node.id.charCodeAt(0)*0.8);}
+        if(node.glowMesh){node.glowMesh.position.set(node.x,node.y,node.z);node.glowMesh.scale.setScalar(pulse*(isSel?2.0:1.2));node.glowMesh.material.opacity=isSel?0.18:0.06+0.03*Math.sin(t*0.03+String(node.id).charCodeAt(0)*0.8);}
         if(node.labelSprite)node.labelSprite.position.set(node.x,node.y-(node.r||6)-14,node.z);
 
       });
@@ -468,7 +468,7 @@ function Atlas(){
     ],800).then(function(raw){
       var p=parseJ(raw);if(!p)return;
       var eids=new Set(nodes.map(function(n){return n.id;}));
-      var nn=(p.nodes||[]).filter(function(n){return !eids.has(n.id);});if(!nn.length)return;
+      var nn=(p.nodes||[]).map(function(n){return Object.assign({},n,{id:String(n.id||"node-"+Math.random().toString(36).slice(2))});}).filter(function(n){return !eids.has(n.id);});if(!nn.length)return;
       var eks=new Set(links.map(function(l){return getId(l.source)+"--"+getId(l.target);}));
       var nl=(p.links||[]).filter(function(l){return !eks.has(l.source+"--"+l.target);});
       var an=nodes.concat(nn);var al2=links.concat(nl);
