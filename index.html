@@ -27,7 +27,7 @@ html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:
 <div id="setup">
   <h1>A T L A S</h1>
   <p style="font-size:9px;color:#1e3a5f;letter-spacing:2px;font-family:'Courier New',monospace">PERSONAL AI BRAIN</p>
-  <input type="text" id="displayName" placeholder="Your name (shown in collective)" autocomplete="off" spellcheck="false" style="background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.2);color:#e2e8f0;padding:12px 16px;border-radius:6px;font-family:'Courier New',monospace;font-size:12px;width:300px;outline:none"/>
+  <input type="text" id="displayName" placeholder="Your name (shown in collective)" autocomplete="off" spellcheck="false"/>
   <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" spellcheck="false"/>
   <button onclick="initAtlas()">INITIALISE ATLAS</button>
   <div class="note">Get a free key at console.groq.com</div>
@@ -118,27 +118,17 @@ var atlasStorage={
   }
 };
 
-async function shareNode(node){
-  try{
-    await fetch(SUPABASE_URL+"/rest/v1/atlas_shared",{method:"POST",headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},body:JSON.stringify({id:(window.__K__?window.__K__.slice(4,12):"anon")+"-"+node.id,node_id:node.id,label:node.label,description:node.description||"",group:node.group||0,shared_by:window.__NAME__||"anon",shared_at:new Date().toISOString()})});
-    return true;
-  }catch(e){return false;}
-}
+function resetKey(){if(window.confirm("Reset API key?")){localStorage.removeItem("atlas_key");localStorage.removeItem("atlas_name");location.reload();}}
 
-async function getSharedNodes(){
-  try{var res=await fetch(SUPABASE_URL+"/rest/v1/atlas_shared?select=*&order=shared_at.desc&limit=100",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});var rows=await res.json();return Array.isArray(rows)?rows:[];}catch(e){return[];}
-}
-
-function resetKey(){if(window.confirm("Reset API key?")){localStorage.removeItem("atlas_key");location.reload();}}
 function initAtlas(){
   var name=document.getElementById("displayName").value.trim();
   var key=document.getElementById("apiKey").value.trim();
   if(!key){alert("Please enter your Groq API key");return;}
   if(!key.startsWith("gsk_")){alert("Key must start with gsk_");return;}
-  if(name)localStorage.setItem("atlas_name",name);
-  window.__K__=key;window.__NAME__=name||localStorage.getItem("atlas_name")||key.slice(4,12);
-  localStorage.setItem("atlas_key",key);launch();
+  if(name){localStorage.setItem("atlas_name",name);window.__NAME__=name;}
+  window.__K__=key;localStorage.setItem("atlas_key",key);launch();
 }
+
 function launch(){
   try{
     document.getElementById("setup").style.display="none";
@@ -147,20 +137,43 @@ function launch(){
     ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Atlas));
   }catch(e){document.getElementById("setup").style.display="flex";document.getElementById("root").style.display="none";alert("Error: "+e.message);}
 }
+
 window.addEventListener("load",function(){
   var s=localStorage.getItem("atlas_key")||localStorage.getItem("atlas_api_key");
-  if(s&&s.startsWith("gsk_")){window.__K__=s;window.__NAME__=localStorage.getItem("atlas_name")||s.slice(4,12);launch();}
+  if(s&&s.startsWith("gsk_")){
+    window.__K__=s;
+    window.__NAME__=localStorage.getItem("atlas_name")||s.slice(4,12);
+    launch();
+  }
 });
 
 function makeLabel(text,col){
   var c=document.createElement("canvas");c.width=320;c.height=56;
-  var ctx=c.getContext("2d");ctx.clearRect(0,0,320,56);ctx.font="bold 20px 'Courier New',monospace";ctx.textAlign="center";ctx.shadowColor=col;ctx.shadowBlur=16;ctx.fillStyle="#ffffff";ctx.fillText(text,160,36);
-  var tex=new THREE.CanvasTexture(c);var mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});var spr=new THREE.Sprite(mat);spr.scale.set(Math.max(60,text.length*9),18,1);return spr;
+  var ctx=c.getContext("2d");ctx.clearRect(0,0,320,56);
+  ctx.font="bold 20px 'Courier New',monospace";ctx.textAlign="center";
+  ctx.shadowColor=col;ctx.shadowBlur=16;ctx.fillStyle="#ffffff";ctx.fillText(text,160,36);
+  var tex=new THREE.CanvasTexture(c);
+  var mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});
+  var spr=new THREE.Sprite(mat);spr.scale.set(Math.max(60,text.length*9),18,1);return spr;
 }
-function applyTB(q,dx,dy,s){var qH=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*s);var ax=new THREE.Vector3(1,0,0).applyQuaternion(q);var qV=new THREE.Quaternion().setFromAxisAngle(ax,-dy*s);q.premultiply(qH).premultiply(qV).normalize();}
-function applyCAM(cam,q,r){if(!cam)return;var p=new THREE.Vector3(0,0,r).applyQuaternion(q);var u=new THREE.Vector3(0,1,0).applyQuaternion(q);cam.position.copy(p);cam.up.copy(u);cam.lookAt(0,0,0);}
+function applyTB(q,dx,dy,s){
+  var qH=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*s);
+  var ax=new THREE.Vector3(1,0,0).applyQuaternion(q);
+  var qV=new THREE.Quaternion().setFromAxisAngle(ax,-dy*s);
+  q.premultiply(qH).premultiply(qV).normalize();
+}
+function applyCAM(cam,q,r){
+  if(!cam)return;
+  var p=new THREE.Vector3(0,0,r).applyQuaternion(q);
+  var u=new THREE.Vector3(0,1,0).applyQuaternion(q);
+  cam.position.copy(p);cam.up.copy(u);cam.lookAt(0,0,0);
+}
 async function groqCall(msgs,maxTok){
-  var res=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__K__},body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:maxTok||1000,messages:msgs})});
+  var res=await fetch("https://api.groq.com/openai/v1/chat/completions",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+window.__K__},
+    body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:maxTok||1000,messages:msgs})
+  });
   var d=await res.json();
   if(d.error)throw new Error(d.error.message||"Groq error");
   return d.choices&&d.choices[0]?d.choices[0].message.content:"";
@@ -169,59 +182,10 @@ function parseJ(raw){var m=(raw||"").match(/\{[\s\S]*\}/);if(!m)return null;try{
 function nowTS(){var n=new Date();return n.getHours()+":"+String(n.getMinutes()).padStart(2,"0");}
 function getId(x){return typeof x==="object"&&x?x.id:x;}
 
-function buildStarNode(scene,node,links,allNodes){
-  var connCount=0;
-  links.forEach(function(l){if(getId(l.source)===node.id||getId(l.target)===node.id)connCount++;});
-  var ch=PALETTE[node.group%PALETTE.length];
-  var connectedGroups=[];
-  var nodeList=allNodes||node._nodes||[];
-  links.forEach(function(l){
-    var ls=getId(l.source),lt=getId(l.target);
-    if(ls===node.id||lt===node.id){
-      var otherId=ls===node.id?lt:ls;
-      var other=nodeList.find(function(n){return n.id===otherId;});
-      if(other&&other.group!==node.group&&!connectedGroups.includes(other.group))connectedGroups.push(other.group);
-    }
-  });
-  var col=new THREE.Color(ch);
-  connectedGroups.slice(0,2).forEach(function(g){col.lerp(new THREE.Color(PALETTE[g%PALETTE.length]),0.3);});
-  var r=5+Math.min(connCount*1.4,12)+Math.min((node.label||"").length*0.1,2);
-  node.r=r;
-  var mesh=new THREE.Mesh(new THREE.SphereGeometry(r*0.6,16,16),new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:0.8,shininess:100,transparent:false}));
-  mesh.userData.nodeId=node.id;mesh.position.set(node.x||0,node.y||0,node.z||0);scene.add(mesh);node.mesh=mesh;
-  var inner=new THREE.Mesh(new THREE.SphereGeometry(r,16,16),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.6,blending:THREE.AdditiveBlending,depthWrite:false}));
-  inner.position.copy(mesh.position);scene.add(inner);node.innerMesh=inner;
-  var glow=new THREE.Mesh(new THREE.SphereGeometry(r*2.4,12,12),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.08,blending:THREE.AdditiveBlending,depthWrite:false}));
-  glow.position.copy(mesh.position);scene.add(glow);node.glowMesh=glow;
-  var halo=new THREE.Mesh(new THREE.SphereGeometry(r*4.0,10,10),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.03,blending:THREE.AdditiveBlending,depthWrite:false}));
-  halo.position.copy(mesh.position);scene.add(halo);node.haloMesh=halo;
-  var spr=makeLabel(node.label,ch);spr.position.set(node.x||0,(node.y||0)-r-14,node.z||0);scene.add(spr);node.labelSprite=spr;
-}
-
-function removeStarNode(scene,node){
-  ["mesh","innerMesh","glowMesh","haloMesh"].forEach(function(k){if(node[k]){scene.remove(node[k]);node[k].geometry.dispose();node[k].material.dispose();}});
-  if(node.labelSprite){scene.remove(node.labelSprite);if(node.labelSprite.material.map)node.labelSprite.material.map.dispose();node.labelSprite.material.dispose();}
-}
-
-function buildLines(scene,nodes,links){
-  var fl=links.map(function(l){return{source:getId(l.source),target:getId(l.target),label:l.label};});
-  var pos=new Float32Array(fl.length*6);var col=new Float32Array(fl.length*6);
-  fl.forEach(function(l,i){
-    var s=nodes.find(function(n){return n.id===l.source;});var t=nodes.find(function(n){return n.id===l.target;});if(!s||!t)return;
-    var b=i*6;pos[b]=s.x||0;pos[b+1]=s.y||0;pos[b+2]=s.z||0;pos[b+3]=t.x||0;pos[b+4]=t.y||0;pos[b+5]=t.z||0;
-    var sc=new THREE.Color(PALETTE[(s.group||0)%PALETTE.length]);var tc=new THREE.Color(PALETTE[(t.group||0)%PALETTE.length]);
-    col[b]=sc.r;col[b+1]=sc.g;col[b+2]=sc.b;col[b+3]=tc.r;col[b+4]=tc.g;col[b+5]=tc.b;
-  });
-  var geo=new THREE.BufferGeometry();geo.setAttribute("position",new THREE.BufferAttribute(pos,3));geo.setAttribute("color",new THREE.BufferAttribute(col,3));
-  var lm=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.28,blending:THREE.AdditiveBlending,depthWrite:false}));
-  scene.add(lm);return{mesh:lm,fl:fl};
-}
-
 function Atlas(){
   var h=React.createElement;
   var u=React.useState;var ue=React.useEffect;var ur=React.useRef;var uc=React.useCallback;
 
-  // Personal brain refs
   var mountR=ur(null),sceneR=ur(null),camR=ur(null),rendR=ur(null),rafR=ur(null),tickR=ur(0);
   var simNR=ur([]),simAR=ur(1.0),simLR=ur([]),linesR=ur(null);
   var graphNR=ur(SEED_NODES.map(function(n){return Object.assign({},n);}));
@@ -231,18 +195,11 @@ function Atlas(){
   var pinR=ur(null),pdR=ur(null),tdR=ur(null),rcR=ur(new THREE.Raycaster()),selIdR=ur(null);
   var recR=ur(null),cbR=ur(null),saveR=ur(null),journalR=ur([]);
 
-  // Collective brain refs
-  var cmountR=ur(null),csceneR=ur(null),ccamR=ur(null),crendR=ur(null),crafR=ur(null),ctickR=ur(0);
-  var csimNR=ur([]),csimAR=ur(1.0),csimLR=ur([]),clinesR=ur(null);
-  var ctrR=ur({rotQ:new THREE.Quaternion(),velDx:0,velDy:0,radius:520,dragging:false,lastX:0,lastY:0});
-  var cpinR=ur(null),cpdR=ur(null),ctdR=ur(null),crcR=ur(new THREE.Raycaster()),cselIdR=ur(null);
-
-  // State
   var _sn=u(null);var selNode=_sn[0];var setSelNode=_sn[1];
   var _vw=u("graph");var vw=_vw[0];var setVw=_vw[1];
-  var _jvw=u("mine");var jvw=_jvw[0];var setJvw=_jvw[1];
   var _ci=u("");var ci=_ci[0];var setCi=_ci[1];
-  var _ms=u([{role:"assistant",content:window.__NAME__&&window.__NAME__.length>3&&!window.__NAME__.match(/^[a-z0-9]{8}$/)?"ATLAS v9.2 ONLINE. Good to have you back, "+window.__NAME__+". Neural graph active.":"ATLAS v9.2 ONLINE. Neural graph active — before we begin, what should I call you?"}]);var msgs=_ms[0];var setMsgs=_ms[1];
+  var _ms=u([{role:"assistant",content:window.__NAME__&&window.__NAME__.length>2&&!/^[a-z0-9]{8}$/.test(window.__NAME__)?"ATLAS v9.2 ONLINE. Good to have you back, "+window.__NAME__+". Neural graph active.":"ATLAS v9.2 ONLINE. Neural graph active — before we begin, what should I call you?"}]);
+  var msgs=_ms[0];var setMsgs=_ms[1];
   var _ip=u(false);var ip=_ip[0];var setIp=_ip[1];
   var _st=u({nodes:SEED_NODES.length,links:SEED_LINKS.length,sub:0});var stats=_st[0];var setSt=_st[1];
   var _al=u(false);var al=_al[0];var setAl=_al[1];
@@ -255,65 +212,107 @@ function Atlas(){
   var _ve=u(true);var ve=_ve[0];var setVe=_ve[1];
   var _il=u(false);var il=_il[0];var setIl=_il[1];
   var _tr=u("");var tr2=_tr[0];var setTr=_tr[1];
-  var _csel=u(null);var csel=_csel[0];var setCsel=_csel[1];
-  var _co=u(false);var showCollective=_co[0];var setShowCollective=_co[1];
-  var _cload=u(false);var cload=_cload[0];var setCload=_cload[1];
 
   ue(function(){selIdR.current=selNode?selNode.id:null;},[selNode]);
-  ue(function(){cselIdR.current=csel?csel.id:null;},[csel]);
   ue(function(){journalR.current=jn;},[jn]);
-
-  // Safety timeout
   ue(function(){
     var t=setTimeout(function(){setBd(function(v){if(!v){setSs("synced");return true;}return v;});},8000);
     return function(){clearTimeout(t);};
   },[]);
 
-  // ── Rebuild personal brain ───────────────────────────────
   var rebuild=uc(function(nodes,links,resetCam){
     var scene=sceneR.current;if(!scene)return;
-    simNR.current.forEach(function(n){removeStarNode(scene,n);});
+    var pm={};
+    simNR.current.forEach(function(n){
+      pm[n.id]={x:n.x,y:n.y,z:n.z,vx:n.vx||0,vy:n.vy||0,vz:n.vz||0};
+      ["mesh","glowMesh","labelSprite"].forEach(function(k){
+        if(n[k]){scene.remove(n[k]);if(n[k].geometry)n[k].geometry.dispose();if(n[k].material){if(n[k].material.map)n[k].material.map.dispose();n[k].material.dispose();}}
+      });
+    });
     if(linesR.current){scene.remove(linesR.current);linesR.current.geometry.dispose();linesR.current.material.dispose();linesR.current=null;}
     var sp=200;
-    var pm={};simNR.current.forEach(function(n){pm[n.id]={x:n.x,y:n.y,z:n.z,vx:n.vx||0,vy:n.vy||0,vz:n.vz||0};});
     simNR.current=nodes.map(function(node){
       var ex=pm[node.id];
-      var n=Object.assign({},node,{x:ex?ex.x:(Math.random()-0.5)*sp,y:ex?ex.y:(Math.random()-0.5)*sp,z:ex?ex.z:(Math.random()-0.5)*sp,vx:ex?ex.vx:0,vy:ex?ex.vy:0,vz:ex?ex.vz:0});
-      return n;
+      return Object.assign({},node,{
+        x:ex?ex.x:(Math.random()-0.5)*sp,y:ex?ex.y:(Math.random()-0.5)*sp,z:ex?ex.z:(Math.random()-0.5)*sp,
+        vx:ex?ex.vx:0,vy:ex?ex.vy:0,vz:ex?ex.vz:0
+      });
     });
-    simNR.current.forEach(function(node){buildStarNode(scene,node,links,simNR.current);});
-    var result=buildLines(scene,simNR.current,links);
-    linesR.current=result.mesh;simLR.current=result.fl;
+    var fl=links.map(function(l){return{source:getId(l.source),target:getId(l.target),label:l.label};});
+    simNR.current.forEach(function(node){
+      var connCount=0;
+      fl.forEach(function(l){if(l.source===node.id||l.target===node.id)connCount++;});
+      var ch=PALETTE[node.group%PALETTE.length];
+      var col=new THREE.Color(ch);
+      var r=5+Math.min(connCount*1.4,12);node.r=r;
+      var mesh=new THREE.Mesh(
+        new THREE.SphereGeometry(r,16,16),
+        new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:0.5,shininess:80})
+      );
+      mesh.userData.nodeId=node.id;mesh.position.set(node.x,node.y,node.z);scene.add(mesh);node.mesh=mesh;
+      var glow=new THREE.Mesh(
+        new THREE.SphereGeometry(r*2.2,10,10),
+        new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.06,blending:THREE.AdditiveBlending,depthWrite:false})
+      );
+      glow.position.copy(mesh.position);scene.add(glow);node.glowMesh=glow;
+      var spr=makeLabel(node.label,ch);
+      spr.position.set(node.x,node.y-r-14,node.z);scene.add(spr);node.labelSprite=spr;
+    });
+    simLR.current=fl;
+    var pos=new Float32Array(fl.length*6);var col2=new Float32Array(fl.length*6);
+    fl.forEach(function(l,i){
+      var s=simNR.current.find(function(n){return n.id===l.source;});
+      var t=simNR.current.find(function(n){return n.id===l.target;});
+      if(!s||!t)return;
+      var b=i*6;pos[b]=s.x;pos[b+1]=s.y;pos[b+2]=s.z;pos[b+3]=t.x;pos[b+4]=t.y;pos[b+5]=t.z;
+      var sc=new THREE.Color(PALETTE[(s.group||0)%PALETTE.length]);
+      var tc=new THREE.Color(PALETTE[(t.group||0)%PALETTE.length]);
+      col2[b]=sc.r;col2[b+1]=sc.g;col2[b+2]=sc.b;col2[b+3]=tc.r;col2[b+4]=tc.g;col2[b+5]=tc.b;
+    });
+    var geo=new THREE.BufferGeometry();
+    geo.setAttribute("position",new THREE.BufferAttribute(pos,3));
+    geo.setAttribute("color",new THREE.BufferAttribute(col2,3));
+    var lm=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0.28,blending:THREE.AdditiveBlending,depthWrite:false}));
+    scene.add(lm);linesR.current=lm;
     simAR.current=1.0;
     if(resetCam){trR.current.rotQ=new THREE.Quaternion();trR.current.radius=520;applyCAM(camR.current,trR.current.rotQ,520);}
     var subCount=0;cacheR.current.forEach(function(b){subCount+=b.nodes.filter(function(n){return !n.isHub;}).length;});
-    setSt({nodes:nodes.length,links:result.fl.length,sub:subCount});
+    setSt({nodes:nodes.length,links:fl.length,sub:subCount});
     setSelNode(null);
   },[]);
 
-  // ── Three.js init (personal) ─────────────────────────────
   ue(function(){
     var mount=mountR.current;if(!mount)return;
     setVs('SpeechRecognition' in window||'webkitSpeechRecognition' in window);
-    // Wait for browser to paint before measuring dimensions
-    var W=mount.offsetWidth>0?mount.offsetWidth:window.innerWidth;
-    var H=mount.offsetHeight>0?mount.offsetHeight:(window.innerHeight-90);
+    var W=mount.offsetWidth||window.innerWidth;
+    var H=mount.offsetHeight||window.innerHeight;
     var scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x020712,0.0006);sceneR.current=scene;
     var cam=new THREE.PerspectiveCamera(60,W/H,1,4000);camR.current=cam;applyCAM(cam,trR.current.rotQ,trR.current.radius);
-    var ren=new THREE.WebGLRenderer({antialias:true,alpha:false});ren.setSize(W,H);ren.setPixelRatio(Math.min(window.devicePixelRatio,2));ren.setClearColor(0x020712,1);mount.appendChild(ren.domElement);rendR.current=ren;
+    var ren=new THREE.WebGLRenderer({antialias:true,alpha:false});
+    ren.setSize(W,H);ren.setPixelRatio(Math.min(window.devicePixelRatio,2));ren.setClearColor(0x020712,1);
+    mount.appendChild(ren.domElement);rendR.current=ren;
     scene.add(new THREE.AmbientLight(0x1a2a4a,2.5));
     var pl1=new THREE.PointLight(0x00d4ff,3,900);pl1.position.set(250,200,200);scene.add(pl1);
     var pl2=new THREE.PointLight(0xa78bfa,2,700);pl2.position.set(-200,-150,-200);scene.add(pl2);
     var pl3=new THREE.PointLight(0x34d399,1.5,600);pl3.position.set(0,-300,300);scene.add(pl3);
     var N=1400,sp=new Float32Array(N*3),sc=new Float32Array(N*3);
-    for(var i=0;i<N;i++){var th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1),rr=900+Math.random()*600;sp[i*3]=rr*Math.sin(ph)*Math.cos(th);sp[i*3+1]=rr*Math.sin(ph)*Math.sin(th);sp[i*3+2]=rr*Math.cos(ph);sc[i*3]=0.55+Math.random()*0.45;sc[i*3+1]=0.65+Math.random()*0.35;sc[i*3+2]=0.8+Math.random()*0.2;}
+    for(var i=0;i<N;i++){
+      var th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1),rr=900+Math.random()*600;
+      sp[i*3]=rr*Math.sin(ph)*Math.cos(th);sp[i*3+1]=rr*Math.sin(ph)*Math.sin(th);sp[i*3+2]=rr*Math.cos(ph);
+      sc[i*3]=0.55+Math.random()*0.45;sc[i*3+1]=0.65+Math.random()*0.35;sc[i*3+2]=0.8+Math.random()*0.2;
+    }
     var sGeo=new THREE.BufferGeometry();sGeo.setAttribute("position",new THREE.BufferAttribute(sp,3));sGeo.setAttribute("color",new THREE.BufferAttribute(sc,3));
     scene.add(new THREE.Points(sGeo,new THREE.PointsMaterial({size:1.2,vertexColors:true,transparent:true,opacity:0.65})));
-    var onR=function(){var W2=mount.offsetWidth,H2=mount.offsetHeight;ren.setSize(W2,H2);cam.aspect=W2/H2;cam.updateProjectionMatrix();};
+    var onR=function(){
+      if(!mount||!ren||!cam)return;
+      var W2=mount.offsetWidth||window.innerWidth,H2=mount.offsetHeight||window.innerHeight;
+      ren.setSize(W2,H2);cam.aspect=W2/H2;cam.updateProjectionMatrix();
+    };
     window.addEventListener("resize",onR);
-    setTimeout(function(){onR();},200);
+    setTimeout(onR,300);
     function animLoop(){
-      rafR.current=requestAnimationFrame(animLoop);var t=tickR.current++;var tr=trR.current;
+      rafR.current=requestAnimationFrame(animLoop);
+      var t=tickR.current++;var tr=trR.current;
       if(!tr.dragging){tr.velDx*=0.96;tr.velDy*=0.96;}
       if(Math.sqrt(tr.velDx*tr.velDx+tr.velDy*tr.velDy)>0.00003){applyTB(tr.rotQ,tr.velDx/0.005,tr.velDy/0.005,0.005);applyCAM(cam,tr.rotQ,tr.radius);}
       var ns=simNR.current;
@@ -326,20 +325,23 @@ function Atlas(){
       }
       var sid=selIdR.current;
       ns.forEach(function(node){
-        if(!node.mesh)return;var isSel=node.id===sid;
+        if(!node.mesh)return;
+        var isSel=node.id===sid;
         var pulse=1+(isSel?0.18:0.07)*Math.sin(t*0.04+node.id.charCodeAt(0)*0.5);
-        var r=node.r||6;
-        node.mesh.position.set(node.x,node.y,node.z);node.mesh.scale.setScalar(pulse*(isSel?1.4:1));
-        if(node.innerMesh){node.innerMesh.position.set(node.x,node.y,node.z);node.innerMesh.scale.setScalar(pulse);}
-        if(node.glowMesh){node.glowMesh.position.set(node.x,node.y,node.z);node.glowMesh.scale.setScalar(pulse*(isSel?2.0:1.2));node.glowMesh.material.opacity=isSel?0.18:0.08+0.04*Math.sin(t*0.03+node.id.charCodeAt(0)*0.8);}
-        if(node.haloMesh){node.haloMesh.position.set(node.x,node.y,node.z);node.haloMesh.scale.setScalar(1+0.08*Math.sin(t*0.02+node.id.charCodeAt(0)*0.4));node.haloMesh.material.opacity=isSel?0.06:0.025+0.015*Math.sin(t*0.018);}
-        if(node.labelSprite)node.labelSprite.position.set(node.x,node.y-r-14,node.z);
+        node.mesh.position.set(node.x,node.y,node.z);node.mesh.scale.setScalar(pulse);
+        if(node.glowMesh){node.glowMesh.position.set(node.x,node.y,node.z);node.glowMesh.scale.setScalar(pulse*(isSel?2.0:1.2));node.glowMesh.material.opacity=isSel?0.18:0.06+0.03*Math.sin(t*0.03+node.id.charCodeAt(0)*0.8);}
+        if(node.labelSprite)node.labelSprite.position.set(node.x,node.y-(node.r||6)-14,node.z);
+        if(node.mesh.material)node.mesh.material.emissiveIntensity=isSel?1.0:0.5+0.2*Math.sin(t*0.025+node.id.charCodeAt(0)*0.6);
       });
-      if(linesR.current){var pp=linesR.current.geometry.attributes.position.array;simLR.current.forEach(function(l,idx){var s=ns.find(function(n){return n.id===l.source;});var t2=ns.find(function(n){return n.id===l.target;});if(!s||!t2)return;var b=idx*6;pp[b]=s.x;pp[b+1]=s.y;pp[b+2]=s.z;pp[b+3]=t2.x;pp[b+4]=t2.y;pp[b+5]=t2.z;});linesR.current.geometry.attributes.position.needsUpdate=true;linesR.current.material.opacity=0.22+0.08*Math.sin(t*0.015);}
+      if(linesR.current){
+        var pp=linesR.current.geometry.attributes.position.array;
+        simLR.current.forEach(function(l,idx){var s=ns.find(function(n){return n.id===l.source;});var t2=ns.find(function(n){return n.id===l.target;});if(!s||!t2)return;var b=idx*6;pp[b]=s.x;pp[b+1]=s.y;pp[b+2]=s.z;pp[b+3]=t2.x;pp[b+4]=t2.y;pp[b+5]=t2.z;});
+        linesR.current.geometry.attributes.position.needsUpdate=true;
+        linesR.current.material.opacity=0.22+0.08*Math.sin(t*0.015);
+      }
       ren.render(scene,cam);
     }
     animLoop();
-    // Load brain
     (async function(){
       try{
         var bkey="atlas-brain-"+(window.__K__?window.__K__.slice(4,12):"default");
@@ -371,7 +373,6 @@ function Atlas(){
 
   ue(function(){cbR.current&&cbR.current.scrollIntoView({behavior:"smooth"});},[msgs]);
 
-  // ── Save brain ───────────────────────────────────────────
   var saveBrain=uc(async function(nodes,links){
     try{
       setSs("saving");
@@ -383,19 +384,26 @@ function Atlas(){
   },[]);
   ue(function(){saveR.current=saveBrain;},[saveBrain]);
 
-  // ── flyTo ────────────────────────────────────────────────
   var flyTo=uc(function(nodeId){
     setVw("graph");
     setTimeout(function(){
       var node=simNR.current.find(function(n){return n.id===nodeId;});if(!node)return;
       setSelNode(Object.assign({},node));
-      var tr=trR.current;var tQ=new THREE.Quaternion();
+      var tr=trR.current;
+      var tQ=new THREE.Quaternion();
       tQ.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3(node.x,node.y,node.z).normalize().negate());
-      var fr=0;function fa(){fr++;tr.rotQ.slerp(tQ,0.06);tr.radius+=(320-tr.radius)*0.06;applyCAM(camR.current,tr.rotQ,tr.radius);if(fr<50)requestAnimationFrame(fa);}fa();
+      // Simple interval-based fly - doesn't compete with main animLoop
+      var steps=0;
+      var fly=setInterval(function(){
+        steps++;
+        tr.rotQ.slerp(tQ,0.08);
+        tr.radius+=(320-tr.radius)*0.08;
+        applyCAM(camR.current,tr.rotQ,tr.radius);
+        if(steps>=40)clearInterval(fly);
+      },16);
     },300);
   },[]);
 
-  // ── selfReflect ──────────────────────────────────────────
   function selfReflect(nodes,links){
     if(nodes.length<4)return;setAl(true);
     var ns=nodes.map(function(n){return n.id+":"+n.label;}).join(", ");
@@ -410,13 +418,13 @@ function Atlas(){
       var eks=new Set(links.map(function(l){return getId(l.source)+"--"+getId(l.target);}));
       var nl=(p.links||[]).filter(function(l){return !eks.has(l.source+"--"+l.target);});
       var an=nodes.concat(nn);var al2=links.concat(nl);
-      stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;rebuild(an,al2,false);
+      stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;
+      rebuild(an,al2,false);
       var t=nowTS();nn.forEach(function(n){setJn(function(prev){return [{time:t,type:"reflected",title:n.label,detail:n.description||"Self-discovered bridge concept",nodeId:n.id}].concat(prev.slice(0,199));});});
       if(saveR.current)saveR.current(an,al2);
     }).catch(function(e){console.error(e);}).finally(function(){setAl(false);});
   }
 
-  // ── learnFrom ────────────────────────────────────────────
   function learnFrom(userMsg,reply,nodes,links){
     setAl(true);
     var eids=nodes.map(function(n){return n.id;}).join(", ");
@@ -436,7 +444,8 @@ function Atlas(){
         if(parentNode){childNN.push({node:n,parent:parentNode});}else{rootNN.push(n);}
       });
       var an=nodes.concat(rootNN);var al2=links.concat(nl);
-      stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;rebuild(an,al2,false);
+      stackR.current[0].nodes=an;stackR.current[0].links=al2;graphNR.current=an;
+      rebuild(an,al2,false);
       childNN.forEach(function(item){
         var pid=item.parent.id;var ex=cacheR.current.get(pid)||{nodes:[],links:[]};
         if(!ex.nodes.find(function(x){return x.id===item.node.id;})){ex.nodes.push(item.node);ex.links.push({source:pid,target:item.node.id,label:"includes"});cacheR.current.set(pid,ex);}
@@ -448,12 +457,11 @@ function Atlas(){
     }).catch(function(e){console.error(e);}).finally(function(){setAl(false);});
   }
 
-  // ── restructure (META) ───────────────────────────────────
   var restructure=uc(async function(){
     var nodes=graphNR.current;if(nodes.length<3)return;setIr(true);
     try{
       var summary=nodes.map(function(n){return n.id+":"+n.label;}).join("\n");
-      var sys="Reorganise this knowledge graph hierarchy. CRITICAL: include ALL nodes, never remove any. These 24 must ALWAYS stay at root level: second-brain,artificial-intelligence,learning,obsidian,memory,neural-networks,knowledge,creativity,consciousness,neuroplasticity,pattern-recognition,systems-thinking,philosophy,language,mathematics,physics,evolution,flow-state,intuition,emergence,information-theory,quantum-mechanics,stoicism,productivity. All other nodes: decide if root or sub-concept. Return ONLY valid JSON: nodes array (ALL nodes), links array, demoted array (id,label,parent_id,reason), reason string.";
+      var sys="Reorganise this knowledge graph. CRITICAL: include ALL nodes, never remove any. These 24 must always stay at root: second-brain,artificial-intelligence,learning,obsidian,memory,neural-networks,knowledge,creativity,consciousness,neuroplasticity,pattern-recognition,systems-thinking,philosophy,language,mathematics,physics,evolution,flow-state,intuition,emergence,information-theory,quantum-mechanics,stoicism,productivity. Return ONLY valid JSON: nodes array (ALL nodes), links array, demoted array (id,label,parent_id,reason), reason string.";
       var raw=await groqCall([{role:"system",content:sys},{role:"user",content:"Restructure:\n"+summary}],1500);
       var p=parseJ(raw);if(!p||!p.nodes||p.nodes.length<3)throw new Error("Invalid");
       graphNR.current=p.nodes;stackR.current[0].nodes=p.nodes;stackR.current[0].links=p.links||[];
@@ -468,7 +476,6 @@ function Atlas(){
     }catch(e){console.error("META:",e);}finally{setIr(false);}
   },[rebuild]);
 
-  // ── unfold ───────────────────────────────────────────────
   var unfold=uc(function(){
     var nodes=[...graphNR.current];var links=[...(stackR.current[0].links||[])];
     var eids=new Set(nodes.map(function(n){return n.id;}));
@@ -481,13 +488,12 @@ function Atlas(){
     rebuild(nodes,links,true);if(saveR.current)saveR.current(nodes,links);
   },[rebuild]);
 
-  // ── drillInto / drillOut / drillTo ───────────────────────
   var drillInto=uc(async function(node){
     setIp(true);
     try{
       var sub=cacheR.current.get(node.id);
       if(!sub){
-        var sys="Generate a deep sub-brain for this knowledge node. Each node MUST have a meaningful one-sentence description. Return ONLY valid JSON: nodes array (first node isHub true with provided id/label, then 5-7 children with unique descriptions), links array (6-10 links).";
+        var sys="Generate a deep sub-brain for this knowledge node. Each node MUST have a meaningful one-sentence description. Return ONLY valid JSON: nodes array (first node isHub true with provided id/label, then 5-7 children), links array (6-10 links).";
         var raw=await groqCall([{role:"system",content:sys},{role:"user",content:"Sub-brain for: "+node.label+" - "+(node.description||"")}],1200);
         var p=parseJ(raw);if(!p)throw new Error("No JSON");
         var sn=(p.nodes||[]).map(function(n){return n.isHub?Object.assign({},n,{id:node.id,label:node.label,description:node.description,group:node.group,isHub:true}):n;});
@@ -508,7 +514,6 @@ function Atlas(){
     var level=stackR.current[stackR.current.length-1];setBc(stackR.current.map(function(l){return{id:l.id,label:l.label};}));rebuild(level.nodes,level.links,true);
   },[rebuild]);
 
-  // ── sendChat ─────────────────────────────────────────────
   var sendChat=uc(async function(){
     var msg=ci.trim();if(!msg||ip)return;
     var um={role:"user",content:msg};var hist=msgs.concat([um]);setMsgs(hist);setCi("");setIp(true);
@@ -518,7 +523,8 @@ function Atlas(){
       var ns=nodes.map(function(n){return "- "+n.label+": "+(n.description||"");}).join("\n");
       var ls=simLR.current.map(function(l){var s=nodes.find(function(n){return n.id===l.source;});var t2=nodes.find(function(n){return n.id===l.target;});return(s?s.label:l.source)+"->"+(t2?t2.label:l.target);}).join(", ");
       var depth=stackR.current.length>1?"Exploring sub-brain of "+level.label+". ":"";
-      var sys="You are Atlas, the intellectual core of this mind. Direct, precise, deeply intelligent, occasionally dry and witty. Speak as a genuine equal. Never fabricate. When uncertain say so plainly. Calibrate response length to depth of question — a greeting gets one sentence, a simple question gets 2-3 sentences, a deep topic gets depth. Never pad shallow questions with philosophy. Read the room. "+depth+"Time: "+tstr+"\n\nKNOWLEDGE:\n"+ns+"\n\nCONNECTIONS: "+ls;
+      var name=window.__NAME__&&!/^[a-z0-9]{8}$/.test(window.__NAME__)?" The user's name is "+window.__NAME__+".":"";
+      var sys="You are Atlas, the intellectual core of this mind. Direct, precise, deeply intelligent, occasionally dry and witty. Speak as a genuine equal. Never fabricate. When uncertain say so plainly. Calibrate response length to depth — a greeting or small talk gets one sentence, a real question gets a real answer, a deep topic gets depth. Never pad shallow questions. Read the room."+name+" "+depth+"Time: "+tstr+"\n\nKNOWLEDGE:\n"+ns+"\n\nCONNECTIONS: "+ls;
       var reply=await groqCall([{role:"system",content:sys}].concat(hist.map(function(m){return{role:m.role,content:m.content};})),1000);
       if(!reply)reply="No response.";
       setMsgs(hist.concat([{role:"assistant",content:reply}]));
@@ -528,35 +534,25 @@ function Atlas(){
         if(pref)u2.voice=pref;window.speechSynthesis.speak(u2);
       }
       if(reply&&reply!=="No response."){
-        // Check if user just told us their name
-        var isNameless=!window.__NAME__||window.__NAME__.match(/^[a-z0-9]{8}$/);
+        // Detect name introduction
+        var isNameless=!window.__NAME__||/^[a-z0-9]{8}$/.test(window.__NAME__);
         if(isNameless&&hist.length<=3){
-          var trimmedMsg=msg.trim();
-          var nameParts=trimmedMsg.split(/\s+/);
-          var looksLikeName=trimmedMsg.length<30&&nameParts.length<=3&&!trimmedMsg.includes("?")||trimmedMsg.toLowerCase().startsWith("my name is")||trimmedMsg.toLowerCase().startsWith("call me")||trimmedMsg.toLowerCase().startsWith("i'm ")||trimmedMsg.toLowerCase().startsWith("i am ");
-          if(looksLikeName){
-            var extractedName=trimmedMsg.replace(/^(my name is|call me|i'm|i am)\s*/i,"").trim().split(/\s+/).slice(0,2).join(" ");
-            extractedName=extractedName.charAt(0).toUpperCase()+extractedName.slice(1);
-            if(extractedName.length>1&&extractedName.length<30){
-              window.__NAME__=extractedName;
-              localStorage.setItem("atlas_name",extractedName);
-            }
+          var lmsg2=msg.trim().toLowerCase();
+          if(msg.trim().length<30&&(lmsg2.startsWith("my name is")||lmsg2.startsWith("call me")||lmsg2.startsWith("i'm ")||lmsg2.startsWith("i am ")||!lmsg2.includes(" ")||msg.trim().split(" ").length<=2)){
+            var en=msg.trim().replace(/^(my name is|call me|i'm|i am)\s*/i,"").trim().split(/\s+/).slice(0,2).join(" ");
+            en=en.charAt(0).toUpperCase()+en.slice(1);
+            if(en.length>1&&en.length<30){window.__NAME__=en;localStorage.setItem("atlas_name",en);}
           }
         }
         var rn=stackR.current[0].nodes;var rl=stackR.current[0].links||simLR.current;
         setTimeout(function(){learnFrom(msg,reply,rn,rl);},1500);
         var lmsg=msg.toLowerCase();
-        if(lmsg.includes("restructure")||lmsg.includes("reorganise")||lmsg.includes("reorganize")||lmsg.includes("clean up the brain")||lmsg.includes("optimise the brain")){setTimeout(function(){restructure();},2000);}
+        if(lmsg.includes("restructure")||lmsg.includes("reorganise")||lmsg.includes("reorganize")||lmsg.includes("clean up the brain")){setTimeout(function(){restructure();},2000);}
         else if(lmsg.includes("unfold")||lmsg.includes("show all nodes")||lmsg.includes("flatten")){setTimeout(function(){unfold();},500);}
-        else if(lmsg.includes("connect ")||lmsg.includes("link ")||lmsg.includes("move ")||lmsg.includes("promote ")){
+        else if((lmsg.includes("connect ")||lmsg.includes("link ")||lmsg.includes("move ")||lmsg.includes("promote "))&&rn.length>0){
           setTimeout(function(){
-            var nodeLabels=rn.map(function(n){return{id:n.id,label:n.label.toLowerCase()};});
-            var found=[];
-            nodeLabels.forEach(function(nl){if(lmsg.includes(nl.label))found.push(nl);});
-            if(found.length>=2){
-              var newLinks=rl.concat([{source:found[0].id,target:found[1].id,label:"connects to"}]);
-              stackR.current[0].links=newLinks;rebuild(rn,newLinks,false);if(saveR.current)saveR.current(rn,newLinks);
-            }
+            var found=[];rn.forEach(function(n){if(lmsg.includes(n.label.toLowerCase()))found.push(n);});
+            if(found.length>=2){var newLinks=rl.concat([{source:found[0].id,target:found[1].id,label:"connects to"}]);stackR.current[0].links=newLinks;rebuild(rn,newLinks,false);if(saveR.current)saveR.current(rn,newLinks);}
           },1000);
         }
       }
@@ -564,7 +560,6 @@ function Atlas(){
     finally{setIp(false);}
   },[ci,ip,msgs,ve]);
 
-  // ── Voice ────────────────────────────────────────────────
   ue(function(){
     if(!vs)return;
     var SR=window.SpeechRecognition||window.webkitSpeechRecognition;var rec=new SR();rec.continuous=false;rec.interimResults=true;rec.lang="en-US";
@@ -573,92 +568,20 @@ function Atlas(){
   },[vs]);
   function toggleListen(){if(!vs)return;if(il){recR.current&&recR.current.stop();setIl(false);}else{setVw("chat");recR.current&&recR.current.start();setIl(true);}}
 
-  // ── Collective brain ─────────────────────────────────────
-  ue(function(){
-    if(!showCollective||!cmountR.current||csceneR.current)return;
-    var mount=cmountR.current;
-    var W=mount.offsetWidth,H=mount.offsetHeight||500;
-    var scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x020712,0.0007);csceneR.current=scene;
-    var cam=new THREE.PerspectiveCamera(60,W/H,1,4000);ccamR.current=cam;applyCAM(cam,ctrR.current.rotQ,ctrR.current.radius);
-    var ren=new THREE.WebGLRenderer({antialias:true,alpha:false});ren.setSize(W,H);ren.setPixelRatio(Math.min(window.devicePixelRatio,2));ren.setClearColor(0x020712,1);mount.appendChild(ren.domElement);crendR.current=ren;
-    scene.add(new THREE.AmbientLight(0x1a2a4a,2.5));
-    scene.add(new THREE.PointLight(0x34d399,3,900));
-    var N=800,sp2=new Float32Array(N*3),sc2=new Float32Array(N*3);
-    for(var i=0;i<N;i++){var th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1),rr=900+Math.random()*600;sp2[i*3]=rr*Math.sin(ph)*Math.cos(th);sp2[i*3+1]=rr*Math.sin(ph)*Math.sin(th);sp2[i*3+2]=rr*Math.cos(ph);sc2[i*3]=0.4+Math.random()*0.4;sc2[i*3+1]=0.7+Math.random()*0.3;sc2[i*3+2]=0.6+Math.random()*0.4;}
-    var sGeo2=new THREE.BufferGeometry();sGeo2.setAttribute("position",new THREE.BufferAttribute(sp2,3));sGeo2.setAttribute("color",new THREE.BufferAttribute(sc2,3));
-    scene.add(new THREE.Points(sGeo2,new THREE.PointsMaterial({size:1.2,vertexColors:true,transparent:true,opacity:0.65})));
-    function cAnim(){
-      crafR.current=requestAnimationFrame(cAnim);var t=ctickR.current++;var tr=ctrR.current;
-      if(!tr.dragging){tr.velDx*=0.96;tr.velDy*=0.96;}
-      if(Math.sqrt(tr.velDx*tr.velDx+tr.velDy*tr.velDy)>0.00003){applyTB(tr.rotQ,tr.velDx/0.005,tr.velDy/0.005,0.005);applyCAM(cam,tr.rotQ,tr.radius);}
-      var ns=csimNR.current;
-      if(csimAR.current>0.001){
-        var a=csimAR.current;
-        for(var ii=0;ii<ns.length;ii++){for(var jj=ii+1;jj<ns.length;jj++){var dx=ns[jj].x-ns[ii].x,dy=ns[jj].y-ns[ii].y,dz=ns[jj].z-ns[ii].z;var d2=dx*dx+dy*dy+dz*dz+1,d=Math.sqrt(d2);var f=-16000*a/d2,fx=dx/d*f,fy=dy/d*f,fz=dz/d*f;ns[ii].vx+=fx;ns[ii].vy+=fy;ns[ii].vz+=fz;ns[jj].vx-=fx;ns[jj].vy-=fy;ns[jj].vz-=fz;}}
-        csimLR.current.forEach(function(l){var s=ns.find(function(n){return n.id===l.source;});var t2=ns.find(function(n){return n.id===l.target;});if(!s||!t2)return;var dx=t2.x-s.x,dy=t2.y-s.y,dz=t2.z-s.z;var d=Math.sqrt(dx*dx+dy*dy+dz*dz)+0.01;var f=(d-130)*0.055*a,fx=dx/d*f,fy=dy/d*f,fz=dz/d*f;s.vx+=fx;s.vy+=fy;s.vz+=fz;t2.vx-=fx;t2.vy-=fy;t2.vz-=fz;});
-        ns.forEach(function(n){n.vx-=n.x*0.012*a;n.vy-=n.y*0.012*a;n.vz-=n.z*0.012*a;n.vx*=0.88;n.vy*=0.88;n.vz*=0.88;n.x+=n.vx;n.y+=n.vy;n.z+=n.vz;});
-        csimAR.current*=0.994;
-      }
-      var csid=cselIdR.current;
-      ns.forEach(function(node){
-        if(!node.mesh)return;var isSel=node.id===csid;
-        var pulse=1+(isSel?0.18:0.07)*Math.sin(t*0.04+node.id.charCodeAt(0)*0.5);
-        var r=node.r||6;
-        node.mesh.position.set(node.x,node.y,node.z);node.mesh.scale.setScalar(pulse*(isSel?1.4:1));
-        if(node.innerMesh){node.innerMesh.position.set(node.x,node.y,node.z);node.innerMesh.scale.setScalar(pulse);}
-        if(node.glowMesh){node.glowMesh.position.set(node.x,node.y,node.z);node.glowMesh.scale.setScalar(pulse*(isSel?2.0:1.2));node.glowMesh.material.opacity=isSel?0.18:0.08+0.04*Math.sin(t*0.03);}
-        if(node.haloMesh){node.haloMesh.position.set(node.x,node.y,node.z);node.haloMesh.material.opacity=isSel?0.06:0.025;}
-        if(node.labelSprite)node.labelSprite.position.set(node.x,node.y-r-14,node.z);
-      });
-      if(clinesR.current){var pp=clinesR.current.geometry.attributes.position.array;csimLR.current.forEach(function(l,idx){var s=ns.find(function(n){return n.id===l.source;});var t2=ns.find(function(n){return n.id===l.target;});if(!s||!t2)return;var b=idx*6;pp[b]=s.x;pp[b+1]=s.y;pp[b+2]=s.z;pp[b+3]=t2.x;pp[b+4]=t2.y;pp[b+5]=t2.z;});clinesR.current.geometry.attributes.position.needsUpdate=true;}
-      ren.render(scene,cam);
-    }
-    cAnim();
-    loadCollective();
-    return function(){cancelAnimationFrame(crafR.current);ren.dispose();if(mount.contains(ren.domElement))mount.removeChild(ren.domElement);};
-  },[showCollective]);
-
-  function loadCollective(){
-    setCload(true);
-    getSharedNodes().then(function(rows){
-      if(!rows||rows.length===0){setCload(false);return;}
-      var nodes=rows.map(function(r){return{id:r.node_id,label:r.label,group:r.group||0,description:r.description||"",shared_by:r.shared_by,x:(Math.random()-0.5)*200,y:(Math.random()-0.5)*200,z:(Math.random()-0.5)*200,vx:0,vy:0,vz:0};});
-      var summary=nodes.map(function(n){return n.id+":"+n.label;}).join(", ");
-      groqCall([{role:"system",content:"Generate meaningful connections between these shared knowledge nodes. Return ONLY valid JSON: {links:[{source:id,target:id,label:string}]}. Only connect genuinely related nodes."},{role:"user",content:summary}],600)
-      .then(function(raw){
-        var p=parseJ(raw);var links=(p&&p.links)||[];
-        var scene=csceneR.current;if(!scene){setCload(false);return;}
-        csimNR.current.forEach(function(n){removeStarNode(scene,n);});
-        if(clinesR.current){scene.remove(clinesR.current);clinesR.current.geometry.dispose();clinesR.current.material.dispose();clinesR.current=null;}
-        nodes.forEach(function(n){buildStarNode(scene,n,links,nodes);});
-        var result=buildLines(scene,nodes,links);
-        clinesR.current=result.mesh;csimLR.current=result.fl;
-        csimNR.current=nodes;csimAR.current=1.0;
-      }).catch(function(e){console.error(e);}).finally(function(){setCload(false);});
-    }).catch(function(){setCload(false);});
-  }
-
-  // Collective pointer events
-  function onCPD(e){var tr=ctrR.current;tr.dragging=true;tr.lastX=e.clientX;tr.lastY=e.clientY;tr.velDx=0;tr.velDy=0;cpdR.current={x:e.clientX,y:e.clientY,time:Date.now()};}
-  function onCPM(e){var tr=ctrR.current;if(!tr.dragging)return;var dx=e.clientX-tr.lastX,dy=e.clientY-tr.lastY;applyTB(tr.rotQ,dx,dy,0.005);applyCAM(ccamR.current,tr.rotQ,tr.radius);tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.clientX;tr.lastY=e.clientY;}
-  function onCPU(e){
-    var tr=ctrR.current;tr.dragging=false;var pd=cpdR.current;
-    if(pd){var moved=Math.hypot(e.clientX-pd.x,e.clientY-pd.y),elapsed=Date.now()-pd.time;
-      if(moved<8&&elapsed<350){var mount=cmountR.current;if(!mount)return;var r=mount.getBoundingClientRect();var ndc=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);crcR.current.setFromCamera(ndc,ccamR.current);var meshes=csimNR.current.map(function(n){return n.mesh;}).filter(Boolean);var hits=crcR.current.intersectObjects(meshes);if(hits.length){var hit=csimNR.current.find(function(n){return n.mesh===hits[0].object;});setCsel(hit?Object.assign({},hit):null);}else setCsel(null);}
-      cpdR.current=null;}
-  }
-  function onCWhl(e){var tr=ctrR.current;tr.radius=Math.max(150,Math.min(1200,tr.radius+e.deltaY*0.5));applyCAM(ccamR.current,tr.rotQ,tr.radius);}
-  function onCTS(e){var tr=ctrR.current;if(e.touches.length===1){tr.dragging=true;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;tr.velDx=0;tr.velDy=0;ctdR.current={x:e.touches[0].clientX,y:e.touches[0].clientY,time:Date.now()};}else if(e.touches.length===2){tr.dragging=false;cpinR.current=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}}
-  function onCTM(e){e.preventDefault();var tr=ctrR.current;if(e.touches.length===1&&tr.dragging){var dx=e.touches[0].clientX-tr.lastX,dy=e.touches[0].clientY-tr.lastY;applyTB(tr.rotQ,dx,dy,0.005);applyCAM(ccamR.current,tr.rotQ,tr.radius);tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;}else if(e.touches.length===2&&cpinR.current!=null){var dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);tr.radius=Math.max(150,Math.min(1200,tr.radius-(dist-cpinR.current)*1.2));applyCAM(ccamR.current,tr.rotQ,tr.radius);cpinR.current=dist;}}
-  function onCTE(e){var tr=ctrR.current;tr.dragging=false;cpinR.current=null;var td=ctdR.current;if(td&&e.changedTouches.length===1){var t2=e.changedTouches[0];if(Math.hypot(t2.clientX-td.x,t2.clientY-td.y)<12&&Date.now()-td.time<350){var mount=cmountR.current;if(!mount)return;var r=mount.getBoundingClientRect();var ndc=new THREE.Vector2(((t2.clientX-r.left)/r.width)*2-1,-((t2.clientY-r.top)/r.height)*2+1);crcR.current.setFromCamera(ndc,ccamR.current);var meshes=csimNR.current.map(function(n){return n.mesh;}).filter(Boolean);var hits=crcR.current.intersectObjects(meshes);if(hits.length){var hit=csimNR.current.find(function(n){return n.mesh===hits[0].object;});setCsel(hit?Object.assign({},hit):null);}else setCsel(null);}}ctdR.current=null;}
-
-  // Personal pointer events
   function onPD(e){if(vw!=="graph")return;var tr=trR.current;tr.dragging=true;tr.lastX=e.clientX;tr.lastY=e.clientY;tr.velDx=0;tr.velDy=0;pdR.current={x:e.clientX,y:e.clientY,time:Date.now()};}
   function onPM(e){var tr=trR.current;if(!tr.dragging)return;var dx=e.clientX-tr.lastX,dy=e.clientY-tr.lastY;applyTB(tr.rotQ,dx,dy,0.005);applyCAM(camR.current,tr.rotQ,tr.radius);tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.clientX;tr.lastY=e.clientY;}
   function onPU(e){
     var tr=trR.current;tr.dragging=false;var pd=pdR.current;
     if(pd){var moved=Math.hypot(e.clientX-pd.x,e.clientY-pd.y),elapsed=Date.now()-pd.time;
-      if(moved<8&&elapsed<350){var mount=mountR.current,r=mount.getBoundingClientRect();var ndc=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);rcR.current.setFromCamera(ndc,camR.current);var meshes=simNR.current.map(function(n){return n.mesh;}).filter(Boolean);var hits=rcR.current.intersectObjects(meshes);if(hits.length){var hit=simNR.current.find(function(n){return n.mesh===hits[0].object;});setSelNode(hit?Object.assign({},hit):null);}else setSelNode(null);}
+      if(moved<8&&elapsed<350){
+        var mount=mountR.current,r=mount.getBoundingClientRect();
+        var ndc=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+        rcR.current.setFromCamera(ndc,camR.current);
+        var meshes=simNR.current.map(function(n){return n.mesh;}).filter(Boolean);
+        var hits=rcR.current.intersectObjects(meshes);
+        if(hits.length){var hit=simNR.current.find(function(n){return n.mesh===hits[0].object;});setSelNode(hit?Object.assign({},hit):null);}
+        else setSelNode(null);
+      }
       pdR.current=null;}
   }
   function onWhl(e){var tr=trR.current;tr.radius=Math.max(150,Math.min(1200,tr.radius+e.deltaY*0.5));applyCAM(camR.current,tr.rotQ,tr.radius);}
@@ -687,8 +610,7 @@ function Atlas(){
       h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
         al&&h("span",{style:{fontSize:7,color:"#a78bfa",letterSpacing:1,animation:"blink 0.6s ease-in-out infinite"}},"⟡ LEARNING"),
         ir&&h("span",{style:{fontSize:7,color:"#fbbf24",letterSpacing:1,animation:"blink 0.4s ease-in-out infinite"}},"⟡ THINKING"),
-        h("button",{onClick:function(){setShowCollective(true);},style:{background:"none",border:"1px solid rgba(52,211,153,0.25)",borderRadius:3,cursor:"pointer",padding:"2px 7px",color:"#34d399",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"COLLECTIVE"),
-        h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212,255,0.2)",borderRadius:3,cursor:"pointer",padding:"1px 5px",color:"#00d4ff",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"UNFOLD"),
+h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212,255,0.2)",borderRadius:3,cursor:"pointer",padding:"1px 5px",color:"#00d4ff",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"UNFOLD"),
         vs&&h("button",{onClick:function(){setVe(function(v){return !v;});},style:{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}},
           h("div",{style:{width:5,height:5,borderRadius:"50%",background:ve?"#fbbf24":"#1e3a5f",boxShadow:ve?"0 0 7px #fbbf24":"none"}}),
           h("span",{style:{fontSize:7,color:ve?"#fbbf24":"#1e3a5f",letterSpacing:1}},ve?"MUTE":"SPEAK")
@@ -705,11 +627,10 @@ function Atlas(){
         h("button",{onClick:function(){drillTo(i);},disabled:i===bc.length-1,style:{background:"none",border:"none",cursor:i===bc.length-1?"default":"pointer",padding:"2px 4px",fontFamily:"inherit",fontSize:9,letterSpacing:2,color:i===bc.length-1?"#00d4ff":"#7dd3fc",fontWeight:i===bc.length-1?"bold":"normal"}},crumb.label.toUpperCase())
       );})),
 
-    h("div",{style:{flex:1,position:"relative",overflow:"hidden",minHeight:0}},
+    h("div",{style:{flex:1,position:"relative",overflow:"hidden"}},
       h("div",{ref:mountR,style:{width:"100%",height:"100%",cursor:vw==="graph"?"grab":"default",touchAction:"none"},
         onPointerDown:onPD,onPointerMove:onPM,onPointerUp:onPU,onPointerLeave:onPU,
         onWheel:onWhl,onTouchStart:onTS,onTouchMove:onTM,onTouchEnd:onTE}),
-
 
       inSub&&vw==="graph"&&h("button",{onClick:drillOut,style:{position:"absolute",top:10,left:12,padding:"6px 12px",background:"rgba(0,212,255,0.07)",border:"1px solid rgba(0,212,255,0.2)",color:"#00d4ff",borderRadius:20,cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,zIndex:6}},"← BACK"),
 
@@ -723,40 +644,37 @@ function Atlas(){
         h("div",{style:{fontSize:10,color:"#e2e8f0",lineHeight:1.5,marginBottom:8,maxHeight:40,overflow:"hidden"}},selNode.description||"No description"),
         h("div",{style:{display:"flex",gap:6}},
           h("button",{onClick:function(){drillInto(selNode);},disabled:ip,style:{flex:1,padding:"6px 8px",background:nc+"18",border:"1px solid "+nc+"44",color:nc,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},ip?"LOADING...":"⬡ EXPAND"),
-          h("button",{onClick:function(){shareNode(selNode).then(function(ok){alert(ok?"⟡ "+selNode.label+" shared to the collective!":"Share failed");});},style:{flex:1,padding:"6px 8px",background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.25)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ SHARE")
+          h("button",{onClick:function(){setVw("chat");setCi("Tell me about "+selNode.label+" and its connections");},style:{flex:1,padding:"6px 8px",background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.25)",color:"#a78bfa",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ QUERY")
         )
       ),
 
-
       vw!=="graph"&&h("div",{style:{position:"fixed",top:0,left:0,right:0,bottom:56,background:"rgba(2,7,18,0.97)",backdropFilter:"blur(28px)",display:"flex",flexDirection:"column",zIndex:50}},
         h("div",{style:{padding:"11px 16px",borderBottom:"1px solid rgba(0,212,255,0.07)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}},
-          h("span",{style:{color:"#00d4ff",fontSize:9,letterSpacing:3}},vw==="journal"?(jvw==="collective"?"// COLLECTIVE BRAIN":"// JOURNAL"):"// QUERY ATLAS"),
+          h("span",{style:{color:"#00d4ff",fontSize:9,letterSpacing:3}},vw==="journal"?"// JOURNAL":"// QUERY ATLAS"),
           h("button",{onClick:function(){setVw("graph");},style:{color:"#475569",background:"none",border:"none",cursor:"pointer",fontSize:14,fontFamily:"inherit"}},"✕")
         ),
 
         vw==="journal"&&h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
-           h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
-              h("div",{style:{padding:"6px 16px",borderBottom:"1px solid rgba(167,139,250,0.1)",display:"flex",justifyContent:"space-between",flexShrink:0}},
-                h("span",{style:{fontSize:9,color:"#a78bfa",letterSpacing:2}},"NEURAL GROWTH LOG"),
-                h("span",{style:{fontSize:8,color:"#e2e8f0"}},jn.length+" ENTRIES")
-              ),
-              jn.length===0
-              ? h("div",{style:{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,padding:"24px"}},
-                  h("div",{style:{fontSize:9,color:"#e2e8f0",letterSpacing:2,textAlign:"center"}},"NO ENTRIES YET"),
-                  h("div",{style:{fontSize:9,color:"#e2e8f0",textAlign:"center",lineHeight:1.8}},"Talk to Atlas. Every concept it discovers appears here.")
-                )
-              : h("div",{style:{flex:1,overflowY:"auto",padding:"8px 12px",display:"flex",flexDirection:"column",gap:8}},
-                  jn.map(function(entry,i){
-                    return h("button",{key:i,onClick:function(){flyTo(entry.nodeId);},style:{background:entry.type==="reflected"?"rgba(167,139,250,0.05)":"rgba(0,212,255,0.04)",border:"1px solid "+(entry.type==="reflected"?"rgba(167,139,250,0.15)":"rgba(0,212,255,0.12)"),borderRadius:8,padding:"10px 12px",cursor:"pointer",fontFamily:"inherit",textAlign:"left",width:"100%"}},
-                      h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
-                        h("span",{style:{color:entry.type==="reflected"?"#a78bfa":"#00d4ff",fontSize:11,fontWeight:"bold"}},entry.title.toUpperCase()),
-                        h("span",{style:{fontSize:8,color:"#e2e8f0"}},entry.time)
-                      ),
-                      h("div",{style:{fontSize:9,color:"#e2e8f0",lineHeight:1.7,marginBottom:4}},entry.detail),
-                      h("div",{style:{fontSize:7,color:entry.type==="reflected"?"#a78bfa":"#00d4ff",letterSpacing:2}},entry.type==="reflected"?"⟡ SELF-DISCOVERED":"⟡ LEARNED"," · TAP TO LOCATE")
-                    );
-                  })
-                )
+          h("div",{style:{padding:"6px 16px",borderBottom:"1px solid rgba(167,139,250,0.1)",display:"flex",justifyContent:"space-between",flexShrink:0}},
+            h("span",{style:{fontSize:9,color:"#a78bfa",letterSpacing:2}},"NEURAL GROWTH LOG"),
+            h("span",{style:{fontSize:8,color:"#e2e8f0"}},jn.length+" ENTRIES")
+          ),
+          jn.length===0
+          ? h("div",{style:{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,padding:"24px"}},
+              h("div",{style:{fontSize:9,color:"#e2e8f0",letterSpacing:2,textAlign:"center"}},"NO ENTRIES YET"),
+              h("div",{style:{fontSize:9,color:"#e2e8f0",textAlign:"center",lineHeight:1.8}},"Talk to Atlas. Every concept it discovers appears here. Tap to fly to it.")
+            )
+          : h("div",{style:{flex:1,overflowY:"auto",padding:"8px 12px",display:"flex",flexDirection:"column",gap:8}},
+              jn.map(function(entry,i){
+                return h("button",{key:i,onClick:function(){flyTo(entry.nodeId);},style:{background:entry.type==="reflected"?"rgba(167,139,250,0.05)":"rgba(0,212,255,0.04)",border:"1px solid "+(entry.type==="reflected"?"rgba(167,139,250,0.15)":"rgba(0,212,255,0.12)"),borderRadius:8,padding:"10px 12px",cursor:"pointer",fontFamily:"inherit",textAlign:"left",width:"100%"}},
+                  h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
+                    h("span",{style:{color:entry.type==="reflected"?"#a78bfa":"#00d4ff",fontSize:11,fontWeight:"bold"}},entry.title.toUpperCase()),
+                    h("span",{style:{fontSize:8,color:"#e2e8f0"}},entry.time)
+                  ),
+                  h("div",{style:{fontSize:9,color:"#e2e8f0",lineHeight:1.7,marginBottom:4}},entry.detail),
+                  h("div",{style:{fontSize:7,color:entry.type==="reflected"?"#a78bfa":"#00d4ff",letterSpacing:2}},entry.type==="reflected"?"⟡ SELF-DISCOVERED":"⟡ LEARNED"," · TAP TO LOCATE")
+                );
+              })
             )
         ),
 
@@ -776,39 +694,6 @@ function Atlas(){
             vs&&h("button",{onClick:toggleListen,style:{padding:"9px 11px",background:il?"rgba(248,113,113,0.12)":"rgba(248,113,113,0.05)",border:"1px solid rgba(248,113,113,"+(il?"0.38":"0.16")+")",color:il?"#f87171":"#475569",borderRadius:6,cursor:"pointer",fontSize:11,fontFamily:"inherit"}},il?"⬛":"🎙"),
             h("input",{value:tr2||ci,onChange:function(e){if(!il)setCi(e.target.value);},onKeyDown:function(e){if(e.key==="Enter")sendChat();},placeholder:il?"Listening...":"Ask Atlas anything...",style:{flex:1,padding:"9px 11px",background:"rgba(0,212,255,0.025)",border:"1px solid rgba(0,212,255,0.09)",borderRadius:6,color:"#e2e8f0",fontSize:11,fontFamily:"inherit",outline:"none"}}),
             h("button",{onClick:sendChat,disabled:ip,style:{padding:"9px 14px",background:"rgba(167,139,250,0.08)",border:"1px solid rgba(167,139,250,0.2)",color:"#a78bfa",borderRadius:6,cursor:ip?"wait":"pointer",fontFamily:"inherit",fontSize:13}},"→")
-          )
-        )
-      ),
-
-      showCollective&&h("div",{style:{position:"fixed",inset:0,background:"#020712",zIndex:200,display:"flex",flexDirection:"column"}},
-        h("div",{style:{padding:"10px 16px",borderBottom:"1px solid rgba(52,211,153,0.15)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,background:"rgba(0,0,0,0.6)"}},
-          h("span",{style:{color:"#34d399",fontSize:10,letterSpacing:4,fontWeight:"bold"}},"COLLECTIVE BRAIN"),
-          h("div",{style:{display:"flex",gap:10,alignItems:"center"}},
-            cload&&h("span",{style:{fontSize:8,color:"#34d399",letterSpacing:1,animation:"blink 0.6s ease-in-out infinite"}},"⟡ LOADING"),
-            h("button",{onClick:function(){loadCollective();},style:{background:"none",border:"1px solid rgba(52,211,153,0.2)",borderRadius:3,cursor:"pointer",padding:"2px 8px",color:"#34d399",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"↺ REFRESH"),
-            h("button",{onClick:function(){setShowCollective(false);csceneR.current=null;},style:{background:"none",border:"1px solid rgba(248,113,113,0.2)",borderRadius:3,cursor:"pointer",padding:"2px 8px",color:"#f87171",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"✕ CLOSE")
-          )
-        ),
-        h("div",{style:{flex:1,position:"relative"}},
-          h("div",{ref:cmountR,style:{width:"100%",height:"100%",cursor:"grab",touchAction:"none"},
-            onPointerDown:onCPD,onPointerMove:onCPM,onPointerUp:onCPU,onPointerLeave:onCPU,
-            onWheel:onCWhl,onTouchStart:onCTS,onTouchMove:onCTM,onTouchEnd:onCTE}),
-          csel&&h("div",{style:{position:"absolute",bottom:8,left:8,right:8,background:"rgba(2,7,18,0.97)",border:"1px solid rgba(52,211,153,0.4)",borderRadius:8,padding:"10px 14px",zIndex:5}},
-            h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
-              h("span",{style:{color:"#34d399",fontSize:11,fontWeight:"bold"}},(csel.label||"").toUpperCase()),
-              h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
-                h("span",{style:{fontSize:8,color:"#e2e8f0"}},"from "+(csel.shared_by||"unknown")),
-                h("button",{onClick:function(){setCsel(null);},style:{color:"#475569",background:"none",border:"none",cursor:"pointer",fontSize:10,fontFamily:"inherit"}},"✕")
-              )
-            ),
-            h("div",{style:{fontSize:9,color:"#e2e8f0",lineHeight:1.7,marginBottom:8}},csel.description||""),
-            h("button",{onClick:function(){
-              var nn=Object.assign({},csel);
-              ["mesh","innerMesh","glowMesh","haloMesh","labelSprite","shared_by","_nodes"].forEach(function(k){delete nn[k];});
-              var nodes=graphNR.current;var links=stackR.current[0].links||[];
-              if(!nodes.find(function(n){return n.id===nn.id;})){var an=nodes.concat([nn]);stackR.current[0].nodes=an;graphNR.current=an;rebuild(an,links,false);if(saveR.current)saveR.current(an,links);}
-              setCsel(null);setShowCollective(false);csceneR.current=null;
-            },style:{width:"100%",padding:"7px",background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.3)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ ABSORB INTO MY BRAIN")
           )
         )
       ),
