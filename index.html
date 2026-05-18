@@ -40,6 +40,7 @@ html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:
 var SUPABASE_URL="https://zvujnkppvdwfpvczqnbc.supabase.co";
 var SUPABASE_KEY="sb_publishable_uPcHMh53kGtcNEa2vpHnug_WC_JN2lb";
 var PALETTE=["#00d4ff","#a78bfa","#34d399","#fbbf24","#f87171","#fb7185","#38bdf8","#c084fc","#6ee7b7","#fcd34d"];
+var ROOT_IDS=new Set(["second-brain","artificial-intelligence","learning","obsidian","memory","neural-networks","knowledge","creativity","consciousness","neuroplasticity","pattern-recognition","systems-thinking","philosophy","language","mathematics","physics","evolution","flow-state","intuition","emergence","information-theory","quantum-mechanics","stoicism","productivity"]);
 var SEED_NODES=[
 {id:"second-brain",label:"Second Brain",group:0,description:"Your external cognitive system for capturing and connecting knowledge"},
 {id:"artificial-intelligence",label:"AI",group:1,description:"Machine systems that simulate human intelligence"},
@@ -244,7 +245,24 @@ function Atlas(){
       return Object.assign({},node,{x:ex?ex.x:(Math.random()-0.5)*sp,y:ex?ex.y:(Math.random()-0.5)*sp,z:ex?ex.z:(Math.random()-0.5)*sp,vx:ex?ex.vx:0,vy:ex?ex.vy:0,vz:ex?ex.vz:0});
     });
     simNR.current.forEach(function(node){
-      var ch=PALETTE[node.group%PALETTE.length];var col=new THREE.Color(ch);var r=6+Math.min(node.label.length*0.28,5);node.r=r;
+      var ch=PALETTE[node.group%PALETTE.length];
+      // Blend color if connected to nodes of different groups
+      var connectedGroups=[];
+      fl.forEach(function(lnk){
+        if(lnk.source===node.id||lnk.target===node.id){
+          var otherId=lnk.source===node.id?lnk.target:lnk.source;
+          var other=nodes.find(function(n){return n.id===otherId;});
+          if(other&&other.group!==node.group&&!connectedGroups.includes(other.group))connectedGroups.push(other.group);
+        }
+      });
+      var col=new THREE.Color(ch);
+      if(connectedGroups.length>0){
+        connectedGroups.slice(0,2).forEach(function(g){
+          var blendCol=new THREE.Color(PALETTE[g%PALETTE.length]);
+          col.lerp(blendCol,0.3);
+        });
+      }
+      var r=6+Math.min(node.label.length*0.28,5);node.r=r;
       var mesh=new THREE.Mesh(new THREE.SphereGeometry(r,20,20),new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:0.35,shininess:90,transparent:true,opacity:0.95}));
       mesh.userData.nodeId=node.id;mesh.position.set(node.x,node.y,node.z);scene.add(mesh);node.mesh=mesh;
       var glow=new THREE.Mesh(new THREE.SphereGeometry(r*2.2,12,12),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.07,blending:THREE.AdditiveBlending,depthWrite:false}));
@@ -265,7 +283,8 @@ function Atlas(){
     scene.add(lm);linesR.current=lm;
     simAR.current=1.0;
     if(resetCam){trR.current.rotQ=new THREE.Quaternion();trR.current.radius=520;if(camR.current)applyCAM(camR.current,trR.current.rotQ,520);}
-    setSt({nodes:nodes.length,links:fl.length});setSelNode(null);
+    var subCount=0;cacheR.current.forEach(function(b){subCount+=b.nodes.filter(function(n){return !n.isHub;}).length;});
+    setSt({nodes:nodes.length+subCount,links:fl.length,root:nodes.length,sub:subCount});setSelNode(null);
   },[]);
 
   ue(function(){
@@ -373,7 +392,7 @@ function Atlas(){
     if(nodes.length<4)return;setAl(true);
     var ns2=nodes.map(function(n){return n.id+":"+n.label;}).join(", ");
     var ls2=links.map(function(l){return getId(l.source)+"->"+getId(l.target);}).join(", ");
-    var sysprompt="Generate 2-3 new bridge concept nodes connecting existing isolated nodes. Return ONLY valid JSON with nodes array and links array. Return ONLY JSON.";
+    var sysprompt="Generate 2-3 new bridge concept nodes connecting existing isolated nodes. Each node MUST have a meaningful one-sentence description field. Return ONLY valid JSON with nodes array (each with id, label, group, description) and links array. Return ONLY JSON.";
     groqCall([{role:"system",content:sysprompt},{role:"user",content:"Nodes: "+ns2+"\nLinks: "+ls2+"\nGenerate bridge nodes."}],800)
     .then(function(raw){
       var parsed=parseJ(raw);if(!parsed)return;
@@ -390,11 +409,7 @@ function Atlas(){
     setAl(true);
     var eids=nodes.map(function(n){return n.id;}).join(", ");
     // System prompt written as concatenation to avoid any quote/brace issues
-    var sys="Extract NEW concepts from this conversation not in ["+eids+"]. "
-      +"Return ONLY valid JSON or NULL. "
-      +"JSON format: nodes array where each node has id, label, group, description, and parent fields. "
-      +"Set parent to an existing node id if this concept belongs inside that node as a sub-concept, or null if it is a broad root-level concept. "
-      +"Also include links array. Max 2 nodes. Return NULL or JSON only.";
+    var sys="Extract NEW concepts from this conversation not in ["+eids+"]. Return ONLY valid JSON or NULL. Each node MUST have a meaningful one-sentence description. JSON format: nodes array where each node has id, label, group, description (required), and parent fields. Set parent to existing node id if sub-concept, null if root-level. Include links array. Max 2 nodes. Return NULL or JSON only."";
     groqCall([{role:"system",content:sys},{role:"user",content:"User: "+userMsg.slice(0,200)+"\nAtlas: "+reply.slice(0,200)}],500)
     .then(function(raw){
       var trimmed=(raw||"").trim();if(trimmed==="NULL"||!trimmed.includes("{"))return;
@@ -406,6 +421,7 @@ function Atlas(){
       // Route nodes: parent set = sub-brain, no parent = root graph
       var rootNN=[];var childNN=[];
       nn.forEach(function(n){
+        if(ROOT_IDS.has(n.id)){rootNN.push(n);return;}
         var parentNode=n.parent?nodes.find(function(x){return x.id===n.parent;}):null;
         if(parentNode){childNN.push({node:n,parent:parentNode});}
         else{rootNN.push(n);}
@@ -429,12 +445,39 @@ function Atlas(){
     }).catch(function(e){console.error(e);}).finally(function(){setAl(false);});
   }
 
+  var unfold=uc(function(){
+    // Pull every node from every sub-brain into the main graph
+    var nodes=[...graphNR.current];
+    var links=[...(stackR.current[0].links||[])];
+    var existingIds=new Set(nodes.map(function(n){return n.id;}));
+    cacheR.current.forEach(function(brain){
+      brain.nodes.forEach(function(n){
+        if(!n.isHub&&!existingIds.has(n.id)){
+          nodes.push(Object.assign({},n));
+          existingIds.add(n.id);
+        }
+      });
+      brain.links.forEach(function(l){
+        var s=getId(l.source),t=getId(l.target);
+        var key=s+"--"+t;
+        var existingKeys=new Set(links.map(function(lk){return getId(lk.source)+"--"+getId(lk.target);}));
+        if(!existingKeys.has(key))links.push({source:s,target:t,label:l.label||"relates to"});
+      });
+    });
+    cacheR.current.clear();
+    graphNR.current=nodes;
+    stackR.current[0].nodes=nodes;
+    stackR.current[0].links=links;
+    rebuild(nodes,links,true);
+    if(saveR.current)saveR.current(nodes,links);
+  },[rebuild]);
+
   var restructure=uc(async function(){
     var nodes=graphNR.current;if(nodes.length<3)return;setIr(true);
     try{
       var summary=nodes.map(function(n){return n.id+":"+n.label;}).join("\n");
       // Aggressive META prompt - demote specific nodes to sub-brains
-      var sys="You are reorganising a knowledge graph hierarchy. CRITICAL: include ALL existing nodes - never remove any. Decide for each: ROOT-LEVEL (broad, foundational, 8-15 max) or nested sub-concept. Return ONLY valid JSON: nodes array (ALL nodes), links array, demoted array (each with id,label,parent_id,reason), reason string. parent_id must be a valid root node id. NEVER omit nodes. Return ONLY JSON."
+      var sys="You are reorganising a knowledge graph hierarchy. CRITICAL rules: 1) Include ALL nodes - never remove any. 2) These 24 core nodes must ALWAYS stay at root level, NEVER demote them: second-brain, artificial-intelligence, learning, obsidian, memory, neural-networks, knowledge, creativity, consciousness, neuroplasticity, pattern-recognition, systems-thinking, philosophy, language, mathematics, physics, evolution, flow-state, intuition, emergence, information-theory, quantum-mechanics, stoicism, productivity. 3) All OTHER nodes: decide if root or sub-concept. Return ONLY valid JSON: nodes array (ALL nodes), links array, demoted array (id,label,parent_id,reason), reason. Return ONLY JSON."
       var raw=await groqCall([{role:"system",content:sys},{role:"user",content:"Restructure:\n"+summary}],1500);
       var parsed=parseJ(raw);if(!parsed||!parsed.nodes||parsed.nodes.length<3)throw new Error("Invalid response");
       graphNR.current=parsed.nodes;stackR.current[0].nodes=parsed.nodes;stackR.current[0].links=parsed.links||[];
@@ -442,6 +485,7 @@ function Atlas(){
       if(parsed.demoted&&parsed.demoted.length>0){
         parsed.demoted.forEach(function(d){
           if(!d.parent_id)return;
+          if(ROOT_IDS.has(d.id))return;
           var existing=cacheR.current.get(d.parent_id)||{nodes:[],links:[]};
           if(!existing.nodes.find(function(x){return x.id===d.id;})){
             existing.nodes.push({id:d.id,label:d.label,group:0,description:d.reason||""});
@@ -461,7 +505,7 @@ function Atlas(){
     try{
       var sub=cacheR.current.get(node.id);
       if(!sub){
-        var sys="Generate a deep sub-brain for a knowledge node. Return ONLY valid JSON with nodes and links arrays. First node must have isHub true, use the node id and label provided. Generate 5-7 child nodes. Create 6-10 links. Return ONLY JSON.";
+        var sys="Generate a deep sub-brain for a knowledge node. Each node MUST have a meaningful one-sentence description. Return ONLY valid JSON with nodes array (each with id, label, group, description, isHub) and links array. First node: isHub true, use provided id and label. Generate 5-7 child nodes with unique descriptions. Create 6-10 links. Return ONLY JSON.";
         var raw=await groqCall([{role:"system",content:sys},{role:"user",content:"Sub-brain for: "+node.label+" - "+(node.description||"")}],1200);
         var parsed=parseJ(raw);if(!parsed)throw new Error("No JSON");
         var sn=(parsed.nodes||[]).map(function(n){return n.isHub?Object.assign({},n,{id:node.id,label:node.label,description:node.description,group:node.group,isHub:true}):n;});
@@ -549,12 +593,13 @@ function Atlas(){
         al&&h("span",{style:{fontSize:7,color:"#a78bfa",letterSpacing:1,animation:"blink 0.6s ease-in-out infinite"}},"⟡ LEARNING"),
         ir&&h("span",{style:{fontSize:7,color:"#fbbf24",letterSpacing:1,animation:"blink 0.4s ease-in-out infinite"}},"⟡ THINKING"),
         h("button",{onClick:restructure,disabled:ir,style:{background:"none",border:"1px solid rgba(251,191,36,0.2)",borderRadius:3,cursor:"pointer",padding:"1px 5px",color:"#fbbf24",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"META"),
+        h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(52,211,153,0.2)",borderRadius:3,cursor:"pointer",padding:"1px 5px",color:"#34d399",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"UNFOLD"),
         vs&&h("button",{onClick:function(){setVe(function(v){return !v;});},style:{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}},
           h("div",{style:{width:5,height:5,borderRadius:"50%",background:ve?"#fbbf24":"#1e3a5f",boxShadow:ve?"0 0 7px #fbbf24":"none"}}),
           h("span",{style:{fontSize:7,color:ve?"#fbbf24":"#1e3a5f",letterSpacing:1}},ve?"MUTE":"SPEAK")
         ),
         h("button",{onClick:resetKey,style:{background:"none",border:"none",cursor:"pointer",padding:0}},h("span",{style:{fontSize:7,color:"#e2e8f0",letterSpacing:1}},"KEY")),
-        h("span",{style:{fontSize:8,color:"#1e3a5f",letterSpacing:1}},"N",h("span",{style:{color:"#00d4ff"}},stats.nodes)," L",h("span",{style:{color:"#a78bfa"}},stats.links)),
+        h("span",{style:{fontSize:8,color:"#1e3a5f",letterSpacing:1}},"N",h("span",{style:{color:"#00d4ff"}},stats.nodes),stats.sub>0&&h("span",{style:{color:"#34d399",fontSize:7}},"+"+stats.sub)," L",h("span",{style:{color:"#a78bfa"}},stats.links)),
         h("span",{style:{fontSize:7,color:ss==="saving"?"#fbbf24":ss==="synced"?"#34d399":"#1e3a5f",letterSpacing:1}},ss==="saving"?"● SAVING":ss==="synced"?"● SAVED":"● LOADING")
       )
     ),
