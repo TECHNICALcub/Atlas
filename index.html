@@ -246,11 +246,12 @@ function Atlas(){
     });
     simNR.current.forEach(function(node){
       var ch=PALETTE[node.group%PALETTE.length];
-      // Blend color if connected to nodes of different groups
+      // Blend color using raw links parameter (fl not yet defined here)
       var connectedGroups=[];
-      fl.forEach(function(lnk){
-        if(lnk.source===node.id||lnk.target===node.id){
-          var otherId=lnk.source===node.id?lnk.target:lnk.source;
+      links.forEach(function(lnk){
+        var ls=getId(lnk.source),lt=getId(lnk.target);
+        if(ls===node.id||lt===node.id){
+          var otherId=ls===node.id?lt:ls;
           var other=nodes.find(function(n){return n.id===otherId;});
           if(other&&other.group!==node.group&&!connectedGroups.includes(other.group))connectedGroups.push(other.group);
         }
@@ -369,7 +370,9 @@ function Atlas(){
   },[rebuild]);
 
   ue(function(){
-    var safety=setTimeout(function(){setBd(true);setSs("synced");},8000);
+    var safety=setTimeout(function(){
+      setBd(function(current){if(!current){setSs("synced");return true;}return current;});
+    },8000);
     return function(){clearTimeout(safety);};
   },[]);
   ue(function(){cbR.current&&cbR.current.scrollIntoView({behavior:"smooth"});},[msgs]);
