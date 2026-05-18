@@ -247,7 +247,7 @@ function Atlas(){
       var r=5+Math.min(connCount*1.4,12);node.r=r;
       var mesh=new THREE.Mesh(
         new THREE.SphereGeometry(r,16,16),
-        new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:0.5,shininess:80})
+        new THREE.MeshBasicMaterial({color:col})
       );
       mesh.userData.nodeId=node.id;mesh.position.set(node.x,node.y,node.z);scene.add(mesh);node.mesh=mesh;
       var glow=new THREE.Mesh(
@@ -331,7 +331,7 @@ function Atlas(){
         node.mesh.position.set(node.x,node.y,node.z);node.mesh.scale.setScalar(pulse);
         if(node.glowMesh){node.glowMesh.position.set(node.x,node.y,node.z);node.glowMesh.scale.setScalar(pulse*(isSel?2.0:1.2));node.glowMesh.material.opacity=isSel?0.18:0.06+0.03*Math.sin(t*0.03+node.id.charCodeAt(0)*0.8);}
         if(node.labelSprite)node.labelSprite.position.set(node.x,node.y-(node.r||6)-14,node.z);
-        if(node.mesh.material)node.mesh.material.emissiveIntensity=isSel?1.0:0.5+0.2*Math.sin(t*0.025+node.id.charCodeAt(0)*0.6);
+
       });
       if(linesR.current){
         var pp=linesR.current.geometry.attributes.position.array;
