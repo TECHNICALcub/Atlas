@@ -409,7 +409,7 @@ function Atlas(){
     setAl(true);
     var eids=nodes.map(function(n){return n.id;}).join(", ");
     // System prompt written as concatenation to avoid any quote/brace issues
-    var sys="Extract NEW concepts from this conversation not in ["+eids+"]. Return ONLY valid JSON or NULL. Each node MUST have a meaningful one-sentence description. JSON format: nodes array where each node has id, label, group, description (required), and parent fields. Set parent to existing node id if sub-concept, null if root-level. Include links array. Max 2 nodes. Return NULL or JSON only."";
+    var sys="Extract NEW concepts from this conversation not in ["+eids+"]. Return ONLY valid JSON or NULL. Each node MUST have a meaningful one-sentence description. JSON format: nodes array where each node has id, label, group, description (required), and parent fields. Set parent to existing node id if sub-concept, null if root-level. Include links array. Max 2 nodes. Return NULL or JSON only.";
     groqCall([{role:"system",content:sys},{role:"user",content:"User: "+userMsg.slice(0,200)+"\nAtlas: "+reply.slice(0,200)}],500)
     .then(function(raw){
       var trimmed=(raw||"").trim();if(trimmed==="NULL"||!trimmed.includes("{"))return;
