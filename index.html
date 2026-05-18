@@ -234,10 +234,10 @@ function Atlas(){
     if(linesR.current){scene.remove(linesR.current);linesR.current.geometry.dispose();linesR.current.material.dispose();linesR.current=null;}
     var sp=200;
     simNR.current=nodes.map(function(node){
-      var ex=pm[node.id];
+      // Always start near origin so nodes are always visible
       return Object.assign({},node,{
-        x:ex?ex.x:(Math.random()-0.5)*sp,y:ex?ex.y:(Math.random()-0.5)*sp,z:ex?ex.z:(Math.random()-0.5)*sp,
-        vx:ex?ex.vx:0,vy:ex?ex.vy:0,vz:ex?ex.vz:0
+        x:(Math.random()-0.5)*sp,y:(Math.random()-0.5)*sp,z:(Math.random()-0.5)*sp,
+        vx:0,vy:0,vz:0
       });
     });
     var fl=links.map(function(l){return{source:getId(l.source),target:getId(l.target),label:l.label};});
