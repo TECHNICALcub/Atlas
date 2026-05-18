@@ -295,7 +295,7 @@ function Atlas(){
   ue(function(){
     var mount=mountR.current;if(!mount)return;
     setVs('SpeechRecognition' in window||'webkitSpeechRecognition' in window);
-    var W=mount.offsetWidth,H=mount.offsetHeight;
+    var W=mount.offsetWidth||window.innerWidth,H=mount.offsetHeight||window.innerHeight;
     var scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x020712,0.0006);sceneR.current=scene;
     var cam=new THREE.PerspectiveCamera(60,W/H,1,4000);camR.current=cam;applyCAM(cam,trR.current.rotQ,trR.current.radius);
     var ren=new THREE.WebGLRenderer({antialias:true,alpha:false});ren.setSize(W,H);ren.setPixelRatio(Math.min(window.devicePixelRatio,2));ren.setClearColor(0x020712,1);mount.appendChild(ren.domElement);rendR.current=ren;
@@ -309,6 +309,7 @@ function Atlas(){
     scene.add(new THREE.Points(sGeo,new THREE.PointsMaterial({size:1.2,vertexColors:true,transparent:true,opacity:0.65})));
     var onR=function(){var W2=mount.offsetWidth,H2=mount.offsetHeight;ren.setSize(W2,H2);cam.aspect=W2/H2;cam.updateProjectionMatrix();};
     window.addEventListener("resize",onR);
+    setTimeout(function(){onR();},200);
     function animLoop(){
       rafR.current=requestAnimationFrame(animLoop);var t=tickR.current++;var tr=trR.current;
       if(!tr.dragging){tr.velDx*=0.96;tr.velDy*=0.96;}
