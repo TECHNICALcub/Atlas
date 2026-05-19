@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>Atlas Sandbox</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000308;overflow:hidden;font-family:'Courier New',monospace;color:#e2e8f0}
+#canvas-wrap{position:fixed;inset:0}
+#ui{position:fixed;bottom:0;left:0;right:0;background:rgba(0,3,8,0.95);border-top:1px solid rgba(0,212,255,0.12);z-index:10;display:flex;flex-direction:column;max-height:55vh}
+#header{padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(0,212,255,0.07);flex-shrink:0}
+#header span{color:#00d4ff;font-size:9px;letter-spacing:3px}
+#status{font-size:8px;color:#34d399;letter-spacing:1px}
+#tabs{display:flex;border-bottom:1px solid rgba(0,212,255,0.07);flex-shrink:0}
+.tab{flex:1;padding:7px;background:none;border:none;cursor:pointer;font-family:inherit;font-size:8px;letter-spacing:2px;color:#2d4a6a;border-bottom:2px solid transparent}
+.tab.active{color:#00d4ff;border-bottom-color:#00d4ff}
+#tab-code{display:flex;flex-direction:column;flex:1;overflow:hidden}
+#tab-chat{display:flex;flex-direction:column;flex:1;overflow:hidden}
+#tab-log{display:flex;flex-direction:column;flex:1;overflow:hidden}
+#editor{flex:1;resize:none;background:rgba(0,212,255,0.02);border:none;color:#34d399;font-family:'Courier New',monospace;font-size:11px;padding:10px;outline:none;line-height:1.6;overflow-y:auto;min-height:0}
+#run-bar{display:flex;gap:8px;padding:8px;flex-shrink:0;border-top:1px solid rgba(0,212,255,0.07)}
+#run-btn{padding:7px 16px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);color:#34d399;cursor:pointer;font-family:inherit;font-size:8px;letter-spacing:2px;border-radius:3px}
+#ask-btn{padding:7px 16px;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);color:#a78bfa;cursor:pointer;font-family:inherit;font-size:8px;letter-spacing:2px;border-radius:3px}
+#reset-btn{padding:7px 12px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:#f87171;cursor:pointer;font-family:inherit;font-size:8px;letter-spacing:2px;border-radius:3px}
+#chat-msgs{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:0}
+#chat-input-bar{display:flex;gap:7px;padding:8px;flex-shrink:0;border-top:1px solid rgba(0,212,255,0.07)}
+#chat-input{flex:1;background:rgba(0,212,255,0.02);border:1px solid rgba(0,212,255,0.1);color:#e2e8f0;font-family:inherit;font-size:11px;padding:8px;outline:none;border-radius:3px}
+#send-btn{padding:8px 14px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);color:#a78bfa;cursor:pointer;font-family:inherit;font-size:13px}
+#log-out{flex:1;overflow-y:auto;padding:10px;font-size:10px;line-height:1.8;color:#475569;min-height:0}
+.msg-atlas{background:rgba(167,139,250,0.05);border:1px solid rgba(167,139,250,0.12);border-radius:6px;padding:8px 10px;font-size:10px;color:#c4b5fd;line-height:1.8}
+.msg-user{background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.1);border-radius:6px;padding:8px 10px;font-size:10px;color:#94a3b8;line-height:1.8;align-self:flex-end;max-width:85%}
+</style>
+</head>
+<body>
+<div id="canvas-wrap"></div>
+
+<div id="ui">
+  <div id="header">
+    <span>◈ ATLAS PARTICLE SANDBOX</span>
+    <span id="status">READY</span>
+  </div>
+  <div id="tabs">
+    <button class="tab active" onclick="switchTab('code')">⟡ CODE</button>
+    <button class="tab" onclick="switchTab('chat')">◈ ATLAS</button>
+    <button class="tab" onclick="switchTab('log')">⊕ LOG</button>
+  </div>
+  <div id="tab-code">
+    <textarea id="editor" spellcheck="false">// Atlas Particle Sandbox
+// Available: particles[], time, N
+// Each particle: {x,y,z,vx,vy,vz,r,g,b,a,size}
+// Modify particles directly - runs every frame
+
+// Default: orbit with turbulence
+var cx=0,cy=0,cz=0;
+for(var i=0;i<N;i++){
+  var p=particles[i];
+  var dx=cx-p.x, dy=cy-p.y, dz=cz-p.z;
+  var dist=Math.sqrt(dx*dx+dy*dy+dz*dz)+0.01;
+  
+  // Gravitational pull toward centre
+  var gravity=0.08/dist;
+  p.vx+=dx*gravity;
+  p.vy+=dy*gravity;
+  p.vz+=dz*gravity;
+  
+  // Turbulence
+  p.vx+=Math.sin(time*0.7+p.y*0.04)*0.06;
+  p.vy+=Math.cos(time*0.5+p.x*0.04)*0.06;
+  p.vz+=Math.sin(time*0.3+p.z*0.04)*0.04;
+  
+  // Damping
+  p.vx*=0.96; p.vy*=0.96; p.vz*=0.96;
+  
+  // Move
+  p.x+=p.vx; p.y+=p.vy; p.z+=p.vz;
+  
+  // Colour by distance from centre
+  var d=dist/120;
+  p.r=d*0.3; p.g=1.0-d*0.4; p.b=1.0;
+  p.a=0.9;
+}</textarea>
+    <div id="run-bar">
+      <button id="run-btn" onclick="runCode()">▶ RUN</button>
+      <button id="ask-btn" onclick="askAtlas()">⟡ ASK ATLAS</button>
+      <button id="reset-btn" onclick="resetParticles()">↺</button>
+    </div>
+  </div>
+  <div id="tab-chat" style="display:none">
+    <div id="chat-msgs">
+      <div class="msg-atlas">I have direct access to this particle system. Tell me what you want to see — or ask me to write code that does something specific. I can modify physics, colour, patterns, anything.</div>
+    </div>
+    <div id="chat-input-bar">
+      <input id="chat-input" placeholder="Tell Atlas what to create..." onkeydown="if(event.key==='Enter')sendChat()"/>
+      <button id="send-btn" onclick="sendChat()">→</button>
+    </div>
+  </div>
+  <div id="tab-log" style="display:none">
+    <div id="log-out">// Execution log will appear here...</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── Particle system ──────────────────────────────────────────
+var N = 6000;
+var particles = [];
+var userFn = null;
+var simTime = 0;
+
+function resetParticles(){
+  particles = [];
+  for(var i=0;i<N;i++){
+    var r = Math.pow(Math.random(),0.4)*120;
+    var th = Math.random()*Math.PI*2;
+    var ph = Math.acos(2*Math.random()-1);
+    particles.push({
+      x: r*Math.sin(ph)*Math.cos(th),
+      y: r*Math.sin(ph)*Math.sin(th),
+      z: r*Math.cos(ph),
+      vx:(Math.random()-0.5)*0.5,
+      vy:(Math.random()-0.5)*0.5,
+      vz:(Math.random()-0.5)*0.5,
+      r:0.2, g:0.8, b:1.0, a:0.9,
+      size: 0.5+Math.random()*1.2
+    });
+  }
+  log("Particles reset (N="+N+")");
+}
+
+resetParticles();
+
+// ── Three.js renderer ────────────────────────────────────────
+var W=window.innerWidth, H=window.innerHeight;
+var scene=new THREE.Scene();
+var cam=new THREE.PerspectiveCamera(60,W/H,0.1,2000);
+cam.position.z=300;
+var ren=new THREE.WebGLRenderer({antialias:true});
+ren.setSize(W,H);ren.setClearColor(0x000308);
+document.getElementById("canvas-wrap").appendChild(ren.domElement);
+
+// Splat geometry
+var quad=new THREE.PlaneGeometry(2,2);
+var geo=new THREE.InstancedBufferGeometry();
+geo.index=quad.index;
+geo.attributes.position=quad.attributes.position;
+var posAttr=new THREE.InstancedBufferAttribute(new Float32Array(N*3),3).setUsage(THREE.DynamicDrawUsage);
+var colAttr=new THREE.InstancedBufferAttribute(new Float32Array(N*4),4).setUsage(THREE.DynamicDrawUsage);
+var sizeAttr=new THREE.InstancedBufferAttribute(new Float32Array(N),1).setUsage(THREE.DynamicDrawUsage);
+geo.setAttribute("aOffset",posAttr);
+geo.setAttribute("aColor",colAttr);
+geo.setAttribute("aSize",sizeAttr);
+
+var vs=[
+  "attribute vec3 aOffset;",
+  "attribute vec4 aColor;",
+  "attribute float aSize;",
+  "varying vec4 vColor;",
+  "varying vec2 vUv;",
+  "void main(){",
+  "  vColor=aColor; vUv=position.xy;",
+  "  vec4 mv=modelViewMatrix*vec4(aOffset,1.0);",
+  "  mv.xy+=position.xy*aSize;",
+  "  gl_Position=projectionMatrix*mv;",
+  "}"
+].join("\n");
+
+var fs=[
+  "varying vec4 vColor;",
+  "varying vec2 vUv;",
+  "void main(){",
+  "  float r=length(vUv);",
+  "  if(r>1.0) discard;",
+  "  float core=1.0-smoothstep(0.0,0.28,r);",
+  "  float halo=pow(max(0.0,1.0-r),9.0)*0.35;",
+  "  float b=core+halo;",
+  "  if(b<0.01) discard;",
+  "  gl_FragColor=vec4(vColor.rgb*b+b*0.25,vColor.a*b);",
+  "}"
+].join("\n");
+
+var mat=new THREE.ShaderMaterial({
+  vertexShader:vs,fragmentShader:fs,
+  transparent:true,depthWrite:false,
+  blending:THREE.AdditiveBlending
+});
+var mesh=new THREE.Mesh(geo,mat);
+scene.add(mesh);
+
+// Upload particle data to GPU
+function uploadParticles(){
+  var pa=posAttr.array, ca=colAttr.array, sa=sizeAttr.array;
+  for(var i=0;i<N;i++){
+    var p=particles[i];
+    pa[i*3]=p.x; pa[i*3+1]=p.y; pa[i*3+2]=p.z;
+    ca[i*4]=p.r; ca[i*4+1]=p.g; ca[i*4+2]=p.b; ca[i*4+3]=p.a;
+    sa[i]=p.size||1;
+  }
+  posAttr.needsUpdate=true;
+  colAttr.needsUpdate=true;
+  sizeAttr.needsUpdate=true;
+}
+
+// ── Code execution ───────────────────────────────────────────
+function runCode(){
+  var code=document.getElementById("editor").value;
+  try{
+    userFn=new Function("particles","time","N",code);
+    setStatus("RUNNING","#34d399");
+    log("Code compiled and running.");
+  }catch(e){
+    setStatus("ERROR","#f87171");
+    log("Error: "+e.message);
+    userFn=null;
+  }
+}
+
+// ── Main loop ─────────────────────────────────────────────────
+var rotX=0,rotY=0,targetRX=0,targetRY=0;
+function animate(){
+  requestAnimationFrame(animate);
+  simTime+=0.016;
+  rotX+=(targetRX-rotX)*0.05;
+  rotY+=(targetRY-rotY)*0.05;
+  cam.position.x=Math.sin(rotY)*Math.cos(rotX)*300;
+  cam.position.y=Math.sin(rotX)*300;
+  cam.position.z=Math.cos(rotY)*Math.cos(rotX)*300;
+  cam.lookAt(0,0,0);
+  if(userFn){
+    try{userFn(particles,simTime,N);}
+    catch(e){log("Runtime error: "+e.message);userFn=null;setStatus("ERROR","#f87171");}
+  }
+  uploadParticles();
+  ren.render(scene,cam);
+}
+animate();
+// Auto-run default code
+runCode();
+
+// ── Orbit controls ───────────────────────────────────────────
+var isDrag=false,lastX=0,lastY=0,pinchDist=null,camR=300;
+ren.domElement.addEventListener("mousedown",function(e){isDrag=true;lastX=e.clientX;lastY=e.clientY;});
+ren.domElement.addEventListener("mousemove",function(e){if(!isDrag)return;targetRY+=(e.clientX-lastX)*0.007;targetRX+=(e.clientY-lastY)*0.007;lastX=e.clientX;lastY=e.clientY;});
+ren.domElement.addEventListener("mouseup",function(){isDrag=false;});
+ren.domElement.addEventListener("wheel",function(e){camR=Math.max(80,Math.min(800,camR+e.deltaY*0.5));});
+ren.domElement.addEventListener("touchstart",function(e){
+  if(e.touches.length===1){isDrag=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}
+  else if(e.touches.length===2){pinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
+});
+ren.domElement.addEventListener("touchmove",function(e){
+  e.preventDefault();
+  if(e.touches.length===1&&isDrag){targetRY+=(e.touches[0].clientX-lastX)*0.007;targetRX+=(e.touches[0].clientY-lastY)*0.007;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}
+  else if(e.touches.length===2&&pinchDist){var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);camR=Math.max(80,Math.min(800,camR-(d-pinchDist)*1.5));pinchDist=d;}
+},{passive:false});
+ren.domElement.addEventListener("touchend",function(){isDrag=false;pinchDist=null;});
+window.addEventListener("resize",function(){W=window.innerWidth;H=window.innerHeight;ren.setSize(W,H);cam.aspect=W/H;cam.updateProjectionMatrix();});
+
+// Update camera radius in loop
+setInterval(function(){
+  var curr=Math.sqrt(cam.position.x*cam.position.x+cam.position.y*cam.position.y+cam.position.z*cam.position.z);
+  var scale=camR/curr;
+  cam.position.multiplyScalar(scale);
+  cam.lookAt(0,0,0);
+},16);
+
+// ── Tab switching ────────────────────────────────────────────
+function switchTab(name){
+  document.getElementById("tab-code").style.display=name==="code"?"flex":"none";
+  document.getElementById("tab-chat").style.display=name==="chat"?"flex":"none";
+  document.getElementById("tab-log").style.display=name==="log"?"flex":"none";
+  document.querySelectorAll(".tab").forEach(function(t,i){
+    t.classList.toggle("active",["code","chat","log"][i]===name);
+  });
+}
+
+// ── Atlas chat ───────────────────────────────────────────────
+var KEY=localStorage.getItem("atlas_key")||"";
+var chatHistory=[{role:"system",content:"You are Atlas, an AI with direct access to a live particle physics sandbox. The user can write JavaScript code that runs every frame to control 6000 particles. Each particle has: x,y,z (position), vx,vy,vz (velocity), r,g,b,a (colour 0-1), size. Available variables: particles[] array, time (seconds), N (count=6000). When asked to create something, write complete runnable JavaScript code. Be creative, experimental, and scientifically curious. No preamble - if asked for code just give the code block. If writing code wrap it in ```js and ```."}];
+
+function sendChat(){
+  var msg=document.getElementById("chat-input").value.trim();
+  if(!msg||!KEY)return;
+  document.getElementById("chat-input").value="";
+  appendMsg(msg,"user");
+  chatHistory.push({role:"user",content:msg});
+  setStatus("ATLAS THINKING...","#a78bfa");
+  fetch("https://api.groq.com/openai/v1/chat/completions",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+KEY},
+    body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:1200,messages:chatHistory})
+  }).then(function(r){return r.json();}).then(function(d){
+    var reply=d.choices&&d.choices[0]?d.choices[0].message.content:"";
+    if(!reply)return;
+    chatHistory.push({role:"assistant",content:reply});
+    appendMsg(reply,"atlas");
+    setStatus("READY","#34d399");
+    // Auto-extract and run code blocks
+    var match=reply.match(/```(?:js|javascript)?\n?([\s\S]*?)```/);
+    if(match){
+      var code=match[1].trim();
+      document.getElementById("editor").value=code;
+      switchTab("code");
+      runCode();
+      log("Atlas wrote and ran new code.");
+    }
+  }).catch(function(e){setStatus("ERROR","#f87171");log("API error: "+e.message);});
+}
+
+function appendMsg(text,role){
+  var div=document.createElement("div");
+  div.className=role==="user"?"msg-user":"msg-atlas";
+  div.textContent=text;
+  var msgs=document.getElementById("chat-msgs");
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askAtlas(){
+  var code=document.getElementById("editor").value;
+  switchTab("chat");
+  var msg="Here's my current code. Can you improve it or suggest what else I could do with these particles?\n\n"+code;
+  document.getElementById("chat-input").value=msg;
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+function setStatus(text,color){
+  var s=document.getElementById("status");
+  s.textContent=text;s.style.color=color||"#34d399";
+}
+function log(text){
+  var el=document.getElementById("log-out");
+  var ts=new Date().toLocaleTimeString();
+  el.innerHTML+="<span style='color:#1e3a5f'>["+ts+"]</span> "+text+"<br>";
+  el.scrollTop=el.scrollHeight;
+}
+
+// Check for saved key
+if(!KEY){
+  KEY=prompt("Enter your Groq API key (gsk_...) to enable Atlas chat:");
+  if(KEY)localStorage.setItem("atlas_key",KEY);
+}
+</script>
+</body>
+</html>
