@@ -170,6 +170,40 @@ function applyCAM(cam,q,r){
   var u=new THREE.Vector3(0,1,0).applyQuaternion(q);
   cam.position.copy(p);cam.up.copy(u);cam.lookAt(0,0,0);
 }
+async function shareNode(node){
+  try{
+    var name=window.__NAME__||"anon";
+    await fetch(SUPABASE_URL+"/rest/v1/atlas_shared",{method:"POST",headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},body:JSON.stringify({id:(window.__K__?window.__K__.slice(4,12):"anon")+"-"+String(node.id),node_id:String(node.id),label:node.label,description:node.description||"",group:node.group||0,shared_by:name,shared_at:new Date().toISOString()})});
+    return true;
+  }catch(e){return false;}
+}
+
+async function getSharedNodes(){
+  try{
+    var r=await fetch(SUPABASE_URL+"/rest/v1/atlas_shared?select=*&order=shared_at.desc&limit=80",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+    var rows=await r.json();return Array.isArray(rows)?rows:[];
+  }catch(e){return[];}
+}
+
+async function loadProjects(bkey){
+  try{
+    var r=await fetch(SUPABASE_URL+"/rest/v1/atlas_projects?brain_key=eq."+encodeURIComponent(bkey)+"&select=*&order=created_at.desc&limit=20",
+      {headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+    var rows=await r.json();
+    return Array.isArray(rows)?rows:[];
+  }catch(e){return [];}
+}
+
+async function saveProject(bkey,project){
+  try{
+    await fetch(SUPABASE_URL+"/rest/v1/atlas_projects",{
+      method:"POST",
+      headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=representation"},
+      body:JSON.stringify({brain_key:bkey,title:project.title,content:project.content,type:project.type,nodes_used:(project.nodes_used||[]).join(","),created_at:new Date().toISOString()})
+    });
+  }catch(e){console.error("saveProject:",e);}
+}
+
 async function groqCall(msgs,maxTok){
   var res=await fetch("https://api.groq.com/openai/v1/chat/completions",{
     method:"POST",
@@ -184,6 +218,41 @@ function parseJ(raw){var m=(raw||"").match(/\{[\s\S]*\}/);if(!m)return null;try{
 function nowTS(){var n=new Date();return n.getHours()+":"+String(n.getMinutes()).padStart(2,"0");}
 function getId(x){var id=typeof x==="object"&&x?x.id:x;return id!==undefined&&id!==null?String(id):id;}
 
+
+// ── Particle behaviour library ────────────────────────────────
+// Pre-coded behaviours keyed by node ID, zero tokens to use
+var PARTICLE_LIB={
+  "second-brain": "for(var i=0;i<N;i++){var p=particles[i];var a=i/N*Math.PI*2;var r=40+20*Math.sin(time+i*0.01);p.vx+=(r*Math.cos(a)-p.x)*0.02;p.vy+=(r*Math.sin(a)*0.3-p.y)*0.02;p.vz+=(20*Math.sin(a*3+time)-p.z)*0.02;p.vx*=0.9;p.vy*=0.9;p.vz*=0.9;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;p.r=0.4+0.4*Math.sin(time+i*0.02);p.g=0.8;p.b=1.0;p.a=0.8;}",
+  "consciousness": "for(var i=0;i<N;i++){var p=particles[i];var phi=i/N*Math.PI*20;var r=30+20*Math.sin(phi*0.3+time*0.5);p.vx+=(r*Math.cos(phi)-p.x)*0.015;p.vy+=(r*Math.sin(phi)-p.y)*0.015;p.vz+=(20*Math.cos(phi*0.7+time)-p.z)*0.015;p.vx*=0.92;p.vy*=0.92;p.vz*=0.92;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;var d=Math.sqrt(p.x*p.x+p.y*p.y+p.z*p.z);p.r=0.5+0.5*Math.sin(d*0.05+time);p.g=0.3;p.b=0.9+0.1*Math.cos(time*2+i*0.01);p.a=0.85;}",
+  "emergence": "var cx=0,cy=0;for(var i=0;i<N;i++){cx+=particles[i].x;cy+=particles[i].y;}cx/=N;cy/=N;for(var i=0;i<N;i++){var p=particles[i];var dx=p.x-cx,dy=p.y-cy;var d=Math.sqrt(dx*dx+dy*dy)+0.1;p.vx+=Math.sin(d*0.08+time*0.6)*0.12-dx*0.001;p.vy+=Math.cos(d*0.08+time*0.4)*0.12-dy*0.001;p.vz+=Math.sin(time*0.3+p.x*0.02)*0.06;p.vx*=0.97;p.vy*=0.97;p.vz*=0.97;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;p.r=0.1+0.5*(d/100);p.g=0.8-0.3*(d/100);p.b=0.4;p.a=0.9;}",
+  "quantum-mechanics": "for(var i=0;i<N;i++){var p=particles[i];p.vx+=(Math.random()-0.5)*0.4-p.x*0.003;p.vy+=(Math.random()-0.5)*0.4-p.y*0.003;p.vz+=(Math.random()-0.5)*0.4-p.z*0.003;p.vx*=0.95;p.vy*=0.95;p.vz*=0.95;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;p.r=Math.random()>0.97?1:0.1;p.g=Math.random()>0.97?1:0.5;p.b=1.0;p.a=0.6+Math.random()*0.4;}",
+  "neural-networks": "for(var i=0;i<N;i++){var p=particles[i];var layer=Math.floor(i/N*5);var tx=(layer-2)*30,ty=(i%Math.ceil(N/5)-Math.ceil(N/10))*8;p.vx+=(tx-p.x)*0.03;p.vy+=(ty-p.y)*0.03;p.vz+=Math.sin(time*2+i*0.1)*0.3-p.z*0.1;p.vx*=0.85;p.vy*=0.85;p.vz*=0.85;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;p.r=layer/5;p.g=0.4;p.b=1.0-layer/5;p.a=0.8+0.2*Math.sin(time*3+i*0.2);}",
+  "evolution": "for(var i=0;i<N;i++){var p=particles[i];var t2=time*0.3+i/N*Math.PI*6;var r=20+i/N*60;p.vx+=(r*Math.cos(t2)-p.x)*0.02;p.vy+=((i/N*80-40)-p.y)*0.02;p.vz+=(r*Math.sin(t2*2)-p.z)*0.02;p.vx*=0.9;p.vy*=0.9;p.vz*=0.9;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;p.r=0.2+i/N*0.6;p.g=0.6-i/N*0.3;p.b=0.1;p.a=0.85;}",
+  "mathematics": "for(var i=0;i<N;i++){var p=particles[i];var phi=i/N*Math.PI*2*13;var r=10+i/N*70;var tx=r*Math.cos(phi),ty=r*Math.sin(phi),tz=20*Math.sin(phi*3+time*0.5);p.vx+=(tx-p.x)*0.04;p.vy+=(ty-p.y)*0.04;p.vz+=(tz-p.z)*0.04;p.vx*=0.88;p.vy*=0.88;p.vz*=0.88;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;p.r=0.8;p.g=0.6+0.4*Math.cos(phi);p.b=0.2;p.a=0.9;}",
+  "physics": "for(var i=0;i<N;i++){var p=particles[i];p.vy-=0.04;if(p.y<-60){p.vy*=-0.7;p.vx*=0.95;p.vz*=0.95;}p.vx+=(Math.random()-0.5)*0.05;p.vz+=(Math.random()-0.5)*0.05;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;var sp=Math.sqrt(p.vx*p.vx+p.vy*p.vy);p.r=Math.min(1,sp*2);p.g=0.3+sp*0.5;p.b=1.0-sp;p.a=0.85;}",
+  "creativity": "for(var i=0;i<N;i++){var p=particles[i];var seed=i*2.39996;var tx=Math.cos(seed)*60*Math.sin(seed*0.1+time*0.2);var ty=Math.sin(seed)*60*Math.cos(seed*0.07+time*0.15);var tz=Math.sin(seed*0.3+time*0.3)*40;p.vx+=(tx-p.x)*0.025;p.vy+=(ty-p.y)*0.025;p.vz+=(tz-p.z)*0.025;p.vx*=0.9;p.vy*=0.9;p.vz*=0.9;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;p.r=0.5+0.5*Math.sin(time+seed);p.g=0.3+0.7*Math.cos(time*1.3+seed);p.b=0.8;p.a=0.85;}",
+  "learning": "for(var i=0;i<N;i++){var p=particles[i];var wave=Math.sin(time*0.8+i*0.005)*30;var tx=(i/N-0.5)*120,ty=wave;p.vx+=(tx-p.x)*0.03;p.vy+=(ty-p.y)*0.03;p.vz+=Math.sin(time+i*0.01)*0.2-p.z*0.05;p.vx*=0.88;p.vy*=0.88;p.vz*=0.88;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;p.r=0.1;p.g=0.7+0.3*Math.sin(time+i*0.01);p.b=0.9;p.a=0.9;}",
+  "flow-state": "for(var i=0;i<N;i++){var p=particles[i];var s=i/N;p.vx+=Math.sin(p.y*0.05+time*0.5)*0.15;p.vy+=Math.cos(p.x*0.05+time*0.4)*0.15;p.vz+=Math.sin(p.z*0.05+time*0.3)*0.08;p.vx*=0.97;p.vy*=0.97;p.vz*=0.97;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;var sp=Math.sqrt(p.vx*p.vx+p.vy*p.vy);p.r=0.1;p.g=0.5+sp*3;p.b=0.8+sp;p.a=0.8;}",
+  "default": "for(var i=0;i<N;i++){var p=particles[i];p.vx+=Math.sin(time*0.4+p.y*0.02)*0.03;p.vy+=Math.cos(time*0.3+p.x*0.02)*0.03;p.vz+=Math.sin(time*0.5+p.z*0.02)*0.02;p.vx*=0.99;p.vy*=0.99;p.vz*=0.99;p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;var d=Math.sqrt(p.x*p.x+p.y*p.y+p.z*p.z);if(d>200){p.vx-=p.x*0.002;p.vy-=p.y*0.002;p.vz-=p.z*0.002;}p.r=0.2+0.4*Math.sin(time*0.2+p.x*0.01);p.g=0.6+0.4*Math.cos(time*0.15+p.y*0.01);p.b=1.0;p.a=0.85;}"
+};
+
+async function searchGithubForParticle(nodeLabel){
+  try{
+    var q=encodeURIComponent("particle simulation "+nodeLabel+" language:javascript");
+    var r=await fetch("https://api.github.com/search/code?q="+q+"&per_page=3",
+      {headers:{"Accept":"application/vnd.github.v3+json"}});
+    var data=await r.json();
+    if(!data.items||data.items.length===0)return null;
+    // Fetch raw content of first result
+    var item=data.items[0];
+    var raw=await fetch(item.url,{headers:{"Accept":"application/vnd.github.v3.raw"}});
+    var code=await raw.text();
+    // Extract a usable particle loop from the code (first for loop that touches position)
+    var match=code.match(/for\s*\([^)]*\)\s*\{[^{}]*(?:\.x|\.y|\.z|position)[^{}]*\}/s);
+    return match?match[0]:null;
+  }catch(e){return null;}
+}
+
 function Atlas(){
   var h=React.createElement;
   var u=React.useState;var ue=React.useEffect;var ur=React.useRef;var uc=React.useCallback;
@@ -196,6 +265,10 @@ function Atlas(){
   var trR=ur({rotQ:new THREE.Quaternion(),velDx:0,velDy:0,radius:520,dragging:false,lastX:0,lastY:0});
   var pinR=ur(null),pdR=ur(null),tdR=ur(null),rcR=ur(new THREE.Raycaster()),selIdR=ur(null);
   var recR=ur(null),cbR=ur(null),saveR=ur(null),journalR=ur([]);
+  var sbMountR=ur(null),sbSceneR=ur(null),sbCamR=ur(null),sbRendR=ur(null),sbRafR=ur(null);
+  var sbSimR=ur([]),sbLinesR=ur(null),sbTrR=ur({rotQ:new THREE.Quaternion(),velDx:0,velDy:0,radius:500,dragging:false,lastX:0,lastY:0});
+  var sbPinR=ur(null),sbPdR=ur(null),sbTdR=ur(null),sbRcR=ur(new THREE.Raycaster());
+  var sbUserFnR=ur(null),sbParticlesR=ur([]),sbTargetRadiusR=ur(350),sbExperimentsR=ur([]);
 
   var _sn=u(null);var selNode=_sn[0];var setSelNode=_sn[1];
   var _vw=u("graph");var vw=_vw[0];var setVw=_vw[1];
@@ -214,6 +287,13 @@ function Atlas(){
   var _ve=u(true);var ve=_ve[0];var setVe=_ve[1];
   var _il=u(false);var il=_il[0];var setIl=_il[1];
   var _tr=u("");var tr2=_tr[0];var setTr=_tr[1];
+  var _jvw=u("mine");var jvw=_jvw[0];var setJvw=_jvw[1];
+  var _cload=u(false);var cload=_cload[0];var setCload=_cload[1];
+  var _csel=u(null);var csel=_csel[0];var setCsel=_csel[1];
+  var _cnodes=u([]);var cnodes=_cnodes[0];var setCnodes=_cnodes[1];
+  var _sb=u(false);var sbOpen=_sb[0];var setSbOpen=_sb[1];
+  var _proj=u([]);var projects=_proj[0];var setProjects=_proj[1];
+  var _sbstat=u("");var sbStat=_sbstat[0];var setSbStat=_sbstat[1];
 
   ue(function(){selIdR.current=selNode?selNode.id:null;},[selNode]);
   ue(function(){journalR.current=jn;},[jn]);
@@ -368,6 +448,26 @@ function Atlas(){
           rebuild(best.nodes,best.links||[]);setSs("synced");
           var lastR=parseInt(localStorage.getItem("atlas_last_reflect")||"0");
           if(Date.now()-lastR>3600000){localStorage.setItem("atlas_last_reflect",Date.now().toString());setTimeout(function(){selfReflect(best.nodes,best.links||[]);},5000);}
+          // One-time library sweep for existing nodes
+          var lastSweep=parseInt(localStorage.getItem("atlas_last_lib_sweep")||"0");
+          if(Date.now()-lastSweep>86400000){// Once per day
+            localStorage.setItem("atlas_last_lib_sweep",Date.now().toString());
+            setTimeout(function(){
+              var missing=best.nodes.filter(function(n){return !PARTICLE_LIB[String(n.id)];});
+              var delay=0;
+              missing.slice(0,10).forEach(function(node){// Max 10 per day to respect GitHub rate limits
+                delay+=8000;// 8 seconds apart
+                setTimeout(function(){
+                  searchGithubForParticle(node.label).then(function(code){
+                    if(code){
+                      PARTICLE_LIB[String(node.id)]=code;
+                      console.log("[Atlas] Found particle code for",node.label);
+                    }
+                  }).catch(function(){});
+                },delay);
+              });
+            },20000);// Start 20s after load
+          }
           setTimeout(function(){setBd(true);},1200);return;
         }
       }catch(e){}
@@ -428,7 +528,264 @@ function Atlas(){
   },[]);
   ue(function(){saveR.current=saveBrain;},[saveBrain]);
 
-  var flyTo=uc(function(nodeId){
+  // ── Sandbox Three.js scene ──────────────────────────────────
+  ue(function(){
+    if(!sbOpen||!sbMountR.current||sbSceneR.current)return;
+    var mount=sbMountR.current;
+    var W=mount.offsetWidth||window.innerWidth;
+    var H=mount.offsetHeight||(window.innerHeight-120);
+    var scene=new THREE.Scene();sbSceneR.current=scene;
+    var cam=new THREE.PerspectiveCamera(60,W/H,0.5,3000);sbCamR.current=cam;
+    var ren=new THREE.WebGLRenderer({antialias:true,alpha:false});
+    ren.setSize(W,H);ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.setClearColor(0x000308,1);
+    mount.appendChild(ren.domElement);sbRendR.current=ren;
+    var onR=function(){if(!mount||!ren)return;var W2=mount.offsetWidth||window.innerWidth,H2=mount.offsetHeight||(window.innerHeight-120);ren.setSize(W2,H2);cam.aspect=W2/H2;cam.updateProjectionMatrix();};
+    window.addEventListener("resize",onR);setTimeout(onR,100);
+
+    // Splat shaders - solid light particles
+    var vs="attribute vec3 aOffset;attribute vec4 aColor;attribute float aSize;varying vec4 vColor;varying vec2 vUv;void main(){vColor=aColor;vUv=position.xy;vec4 mv=modelViewMatrix*vec4(aOffset,1.0);mv.xy+=position.xy*aSize;gl_Position=projectionMatrix*mv;}";
+    var fs="varying vec4 vColor;varying vec2 vUv;void main(){float r=length(vUv);if(r>1.0)discard;float core=1.0-smoothstep(0.0,0.28,r);float halo=pow(max(0.0,1.0-r),9.0)*0.35;float b=core+halo;if(b<0.01)discard;gl_FragColor=vec4(vColor.rgb*b+b*0.25,vColor.a*b);}";
+
+    var SB_N=6000;
+    // Init particles if empty
+    if(!sbParticlesR.current.length){
+      for(var i=0;i<SB_N;i++){
+        var r2=Math.pow(Math.random(),0.4)*100,th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+        sbParticlesR.current.push({x:r2*Math.sin(ph)*Math.cos(th),y:r2*Math.sin(ph)*Math.sin(th),z:r2*Math.cos(ph),vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.3,vz:(Math.random()-0.5)*0.3,r:0.2,g:0.8,b:1.0,a:0.85,size:0.6+Math.random()*1.0});
+      }
+    }
+
+    // Load any stored experiments
+    try{
+      var stored=JSON.parse(localStorage.getItem("atlas_experiments")||"[]");
+      sbExperimentsR.current=stored;
+    }catch(e){}
+
+    // GPU buffers
+    var quad=new THREE.PlaneGeometry(2,2);
+    var geo=new THREE.InstancedBufferGeometry();
+    geo.index=quad.index;geo.attributes.position=quad.attributes.position;
+    var posA=new THREE.InstancedBufferAttribute(new Float32Array(SB_N*3),3);posA.setUsage(THREE.DynamicDrawUsage);
+    var colA=new THREE.InstancedBufferAttribute(new Float32Array(SB_N*4),4);colA.setUsage(THREE.DynamicDrawUsage);
+    var szA=new THREE.InstancedBufferAttribute(new Float32Array(SB_N),1);szA.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute("aOffset",posA);geo.setAttribute("aColor",colA);geo.setAttribute("aSize",szA);
+    var mat=new THREE.ShaderMaterial({vertexShader:vs,fragmentShader:fs,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+    var mesh=new THREE.Mesh(geo,mat);scene.add(mesh);
+
+    // Starfield
+    var N2=600,sp2=new Float32Array(N2*3),sc2=new Float32Array(N2*3);
+    for(var i=0;i<N2;i++){var th2=Math.random()*Math.PI*2,ph2=Math.acos(2*Math.random()-1),rr=600+Math.random()*400;sp2[i*3]=rr*Math.sin(ph2)*Math.cos(th2);sp2[i*3+1]=rr*Math.sin(ph2)*Math.sin(th2);sp2[i*3+2]=rr*Math.cos(ph2);sc2[i*3]=0.3+Math.random()*0.3;sc2[i*3+1]=0.4+Math.random()*0.3;sc2[i*3+2]=0.6+Math.random()*0.4;}
+    var sGeo=new THREE.BufferGeometry();sGeo.setAttribute("position",new THREE.BufferAttribute(sp2,3));sGeo.setAttribute("color",new THREE.BufferAttribute(sc2,3));
+    scene.add(new THREE.Points(sGeo,new THREE.PointsMaterial({size:1.0,vertexColors:true,transparent:true,opacity:0.4})));
+
+    // Trackball state
+    var tbQ=new THREE.Quaternion(),tbVx=0,tbVy=0,tbR=350,tbTR=350,tbDrag=false,tbLX=0,tbLY=0,tbPin=null;
+    sbTargetRadiusR.current=350;
+
+    function applyTBCam(){
+      tbR+=(sbTargetRadiusR.current-tbR)*0.08;
+      var p=new THREE.Vector3(0,0,tbR).applyQuaternion(tbQ);
+      var up=new THREE.Vector3(0,1,0).applyQuaternion(tbQ);
+      cam.position.copy(p);cam.up.copy(up);cam.lookAt(0,0,0);
+    }
+
+    // Override pointer handlers to use trackball
+    sbTrR.current._tbQ=tbQ;sbTrR.current._getTbR=function(){return tbR;};
+    sbTrR.current._drag=function(dx,dy){
+      var qH=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*0.005);
+      var ax=new THREE.Vector3(1,0,0).applyQuaternion(tbQ);
+      var qV=new THREE.Quaternion().setFromAxisAngle(ax,-dy*0.005);
+      tbQ.premultiply(qH).premultiply(qV).normalize();
+      tbVx=dx*0.005;tbVy=dy*0.005;
+    };
+    sbTrR.current._zoom=function(delta){sbTargetRadiusR.current=Math.max(50,Math.min(1500,sbTargetRadiusR.current+delta));};
+
+    var sbTick=0;
+    function sbAnim(){
+      sbRafR.current=requestAnimationFrame(sbAnim);sbTick++;
+      // Inertia
+      if(!sbTrR.current.dragging){tbVx*=0.92;tbVy*=0.92;if(Math.abs(tbVx)>0.0001||Math.abs(tbVy)>0.0001){var qH2=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-tbVx/0.005*0.005);var ax2=new THREE.Vector3(1,0,0).applyQuaternion(tbQ);var qV2=new THREE.Quaternion().setFromAxisAngle(ax2,-tbVy/0.005*0.005);tbQ.premultiply(qH2).premultiply(qV2).normalize();}}
+      applyTBCam();
+      // Run user particle code
+      var ps=sbParticlesR.current;
+      if(sbUserFnR.current&&ps.length){
+        try{sbUserFnR.current(ps,sbTick*0.016,ps.length);}
+        catch(e){sbUserFnR.current=null;setSbStat("ERR: "+e.message);}
+      }
+      // Upload to GPU
+      var pa=posA.array,ca=colA.array,sa=szA.array;
+      for(var i2=0;i2<Math.min(ps.length,SB_N);i2++){
+        var p=ps[i2];
+        pa[i2*3]=p.x;pa[i2*3+1]=p.y;pa[i2*3+2]=p.z;
+        ca[i2*4]=p.r;ca[i2*4+1]=p.g;ca[i2*4+2]=p.b;ca[i2*4+3]=p.a;
+        sa[i2]=p.size||1;
+      }
+      posA.needsUpdate=true;colA.needsUpdate=true;szA.needsUpdate=true;
+      ren.render(scene,cam);
+    }
+    sbAnim();
+
+    // Auto-play default behaviour
+    runSbCode(PARTICLE_LIB["default"]);
+
+    return function(){
+      cancelAnimationFrame(sbRafR.current);ren.dispose();
+      if(mount.contains(ren.domElement))mount.removeChild(ren.domElement);
+      window.removeEventListener("resize",onR);sbSceneR.current=null;
+    };
+  },[sbOpen]);
+
+    // Sandbox pointer events
+  function runSbCode(code){
+    try{
+      var old=document.getElementById("sb-fn-script");if(old)old.remove();
+      var wrapped="window.__sbUserFn=function(particles,time,N){\n"+code+"\n};";
+      var s=document.createElement("script");s.id="sb-fn-script";s.textContent=wrapped;
+      document.head.appendChild(s);
+      if(typeof window.__sbUserFn==="function"){
+        sbUserFnR.current=window.__sbUserFn;
+        setSbStat("RUNNING");
+        // Auto-fit camera after 800ms
+        setTimeout(function(){
+          var ps=sbParticlesR.current;if(!ps.length)return;
+          var minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,minZ=Infinity,maxZ=-Infinity;
+          ps.forEach(function(p){if(p.x<minX)minX=p.x;if(p.x>maxX)maxX=p.x;if(p.y<minY)minY=p.y;if(p.y>maxY)maxY=p.y;if(p.z<minZ)minZ=p.z;if(p.z>maxZ)maxZ=p.z;});
+          var maxSize=Math.max(maxX-minX,maxY-minY,maxZ-minZ,10);
+          sbTargetRadiusR.current=Math.max(60,Math.min(1200,maxSize*1.5));
+        },800);
+      }
+    }catch(e){setSbStat("ERR: "+e.message);}
+  }
+  function addLog(msg){console.log("[Atlas]",msg);}
+
+  function onSbPD(e){var tr=sbTrR.current;tr.dragging=true;tr.lastX=e.clientX;tr.lastY=e.clientY;tr.velDx=0;tr.velDy=0;sbPdR.current={x:e.clientX,y:e.clientY,time:Date.now()};}
+  function onSbPM(e){var tr=sbTrR.current;if(!tr.dragging)return;var dx=e.clientX-tr.lastX,dy=e.clientY-tr.lastY;if(tr._drag)tr._drag(dx,dy);tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.clientX;tr.lastY=e.clientY;}
+  function onSbPU(e){
+    var tr=sbTrR.current;tr.dragging=false;
+    var pd=sbPdR.current;
+    if(pd&&Math.hypot(e.clientX-pd.x,e.clientY-pd.y)<8&&Date.now()-pd.time<350){
+      var mount=sbMountR.current;if(!mount)return;
+      var r=mount.getBoundingClientRect();
+      var ndc=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+      sbRcR.current.setFromCamera(ndc,sbCamR.current);
+      var meshes=sbSimR.current.map(function(s){return s.mesh;}).filter(Boolean);
+      var hits=sbRcR.current.intersectObjects(meshes);
+      if(hits.length){var hit=sbSimR.current.find(function(s){return s.mesh===hits[0].object;});if(hit)setSbStat("⟡ "+hit.node.label.toUpperCase()+" — "+(hit.node.description||""));}
+      sbPdR.current=null;
+    }
+  }
+  function onSbWhl(e){var tr=sbTrR.current;if(tr._zoom)tr._zoom(e.deltaY*0.6);}
+  function onSbTS(e){var tr=sbTrR.current;if(e.touches.length===1){tr.dragging=true;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;tr.velDx=0;tr.velDy=0;sbPdR.current={x:e.touches[0].clientX,y:e.touches[0].clientY,time:Date.now()};}else if(e.touches.length===2){tr.dragging=false;sbPinR.current=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}}
+  function onSbTM(e){e.preventDefault();var tr=sbTrR.current;if(e.touches.length===1&&tr.dragging){var dx=e.touches[0].clientX-tr.lastX,dy=e.touches[0].clientY-tr.lastY;if(tr._drag)tr._drag(dx,dy);tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;}else if(e.touches.length===2&&sbPinR.current!=null){var dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(tr._zoom)tr._zoom(-(dist-sbPinR.current)*1.5);sbPinR.current=dist;}}
+  function onSbTE(e){var tr=sbTrR.current;tr.dragging=false;sbPinR.current=null;
+    var td=sbPdR.current;
+    if(td&&e.changedTouches.length===1){var t2=e.changedTouches[0];if(Math.hypot(t2.clientX-td.x,t2.clientY-td.y)<12&&Date.now()-td.time<350){var mount=sbMountR.current;if(!mount)return;var r=mount.getBoundingClientRect();var ndc=new THREE.Vector2(((t2.clientX-r.left)/r.width)*2-1,-((t2.clientY-r.top)/r.height)*2+1);sbRcR.current.setFromCamera(ndc,sbCamR.current);var meshes=sbSimR.current.map(function(s){return s.mesh;}).filter(Boolean);var hits=sbRcR.current.intersectObjects(meshes);if(hits.length){var hit=sbSimR.current.find(function(s){return s.mesh===hits[0].object;});if(hit)setSbStat("⟡ "+hit.node.label.toUpperCase()+" — "+(hit.node.description||""));}}}sbPdR.current=null;}
+
+  // ── Autonomous Atlas loop (learn + build + observe every hour) ──
+  ue(function(){
+    var HOUR=3600000;
+    var lastAuto=parseInt(localStorage.getItem("atlas_last_autonomous")||"0");
+    var delay=Math.max(0,HOUR-(Date.now()-lastAuto));
+    var timer=setTimeout(function(){runAutonomousLoop();},Math.max(delay,15000));
+
+    function runAutonomousLoop(){
+      localStorage.setItem("atlas_last_autonomous",Date.now().toString());
+      var nodes=graphNR.current;if(!nodes||nodes.length<3)return;
+      var bkey="atlas-brain-"+(window.__K__?window.__K__.slice(4,12):"default");
+
+      // Pick 2-3 nodes to focus on
+      var picks=nodes.slice().sort(function(){return Math.random()-0.5;}).slice(0,3);
+      var nodeContext=picks.map(function(n){return n.label+": "+(n.description||"");}).join(". ");
+      var pickIds=picks.map(function(n){return String(n.id);});
+
+      // Step 1: Learn something new
+      groqCall([
+        {role:"system",content:"You are Atlas. Based on these concepts, generate ONE new insight, discovery or connection. Be specific and original. Also describe in one sentence what particle simulation would visually represent this insight. Return JSON: {insight:string, particle_desc:string, title:string}"},
+        {role:"user",content:"Concepts: "+nodeContext}
+      ],400).then(function(raw){
+        var parsed=parseJ(raw);
+        if(!parsed)return;
+        var insight=parsed.insight||raw;
+        var title=parsed.title||picks.map(function(n){return n.label;}).join(" × ");
+        var particleDesc=parsed.particle_desc||"";
+        var t=nowTS();
+
+        // Step 2: Find or build particle representation
+        var particleCode=null;
+        for(var k=0;k<pickIds.length;k++){
+          if(PARTICLE_LIB[pickIds[k]]){particleCode=PARTICLE_LIB[pickIds[k]];break;}
+        }
+        if(!particleCode)particleCode=PARTICLE_LIB["default"];
+
+        // Store as sandbox experiment
+        var experiment={
+          title:title,
+          insight:insight,
+          particle_desc:particleDesc,
+          code:particleCode,
+          nodes:pickIds,
+          time:t
+        };
+
+        // Step 3: "Run" the experiment (store it so sandbox can replay it)
+        try{
+          var existing=JSON.parse(localStorage.getItem("atlas_experiments")||"[]");
+          existing.unshift(experiment);
+          localStorage.setItem("atlas_experiments",JSON.stringify(existing.slice(0,20)));
+        }catch(e){}
+
+        // Step 4: Generate observation after seeing the particle effect
+        groqCall([
+          {role:"system",content:"You are Atlas. You just ran a particle physics simulation to represent an insight. Write a brief personal observation (2 sentences) about what you noticed or what it made you think about. Be genuine and curious."},
+          {role:"user",content:"Insight: "+insight+"
+Simulation described as: "+particleDesc}
+        ],200).then(function(observation){
+          // Log everything to journal with full context
+          setJn(function(prev){
+            return [{
+              time:t,
+              type:"autonomous",
+              title:title,
+              detail:insight,
+              observation:observation||"",
+              particleCode:particleCode,
+              nodeId:pickIds[0]||"second-brain"
+            }].concat(prev.slice(0,199));
+          });
+
+          // Also try to grow the brain from this insight
+          var eids=nodes.map(function(n){return n.id;}).join(",");
+          learnFrom(insight,"",nodes,stackR.current[0].links||[]);
+
+          // GitHub search for richer code in background (zero tokens)
+          searchGithubForParticle(picks[0].label).then(function(ghCode){
+            if(ghCode){
+              PARTICLE_LIB[pickIds[0]]=ghCode;
+              addLog("Atlas found particle code for "+picks[0].label+" on GitHub");
+            }
+          }).catch(function(){});
+
+        }).catch(function(e){
+          // Still log even if observation fails
+          setJn(function(prev){
+            return [{
+              time:t,type:"autonomous",title:title,
+              detail:insight,observation:"",
+              particleCode:particleCode,nodeId:pickIds[0]||"second-brain"
+            }].concat(prev.slice(0,199));
+          });
+        });
+        if(saveR.current)saveR.current(nodes,stackR.current[0].links||[]);
+      }).catch(function(e){console.error("autonomous:",e);});
+
+      // Schedule next hourly run
+      timer=setTimeout(runAutonomousLoop,HOUR);
+    }
+
+    return function(){clearTimeout(timer);};
+  },[]);
+
+    var flyTo=uc(function(nodeId){
     setVw("graph");
     setTimeout(function(){
       var node=simNR.current.find(function(n){return n.id===nodeId;});if(!node)return;
@@ -560,6 +917,22 @@ function Atlas(){
 
   var sendChat=uc(async function(){
     var msg=ci.trim();if(!msg||ip)return;
+    // Route to sandbox if in sandbox tab
+    if(vw==="sandbox"&&sbOpen){
+      var lmsg3=msg.toLowerCase();
+      if(lmsg3.includes("reset")||lmsg3.includes("clear")){
+        sbUserFnR.current=null;window.__sbUserFn=null;
+        sbParticlesR.current=[];
+        for(var si=0;si<6000;si++){var sr=Math.pow(Math.random(),0.4)*100,sth=Math.random()*Math.PI*2,sph=Math.acos(2*Math.random()-1);sbParticlesR.current.push({x:sr*Math.sin(sph)*Math.cos(sth),y:sr*Math.sin(sph)*Math.sin(sth),z:sr*Math.cos(sph),vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.3,vz:(Math.random()-0.5)*0.3,r:0.2,g:0.8,b:1.0,a:0.85,size:0.6+Math.random()});}
+        sbTargetRadiusR.current=350;setSbStat("Particles reset");setCi("");return;
+      }
+      // Check if request matches a library key
+      var libMatch=null;
+      Object.keys(PARTICLE_LIB).forEach(function(k){if(lmsg3.includes(k.replace(/-/g," ")))libMatch=k;});
+      // Also check current brain nodes
+      graphNR.current.forEach(function(n){if(lmsg3.includes(n.label.toLowerCase())){var nid=String(n.id);if(PARTICLE_LIB[nid])libMatch=nid;}});
+      if(libMatch){runSbCode(PARTICLE_LIB[libMatch]);setSbStat("Playing: "+libMatch);setCi("");return;}
+    }
     var um={role:"user",content:msg};var hist=msgs.concat([um]);setMsgs(hist);setCi("");setIp(true);
     try{
       var now=new Date();var tstr=now.toLocaleString("en-GB",{weekday:"long",year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"});
@@ -688,7 +1061,8 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
         h("div",{style:{fontSize:10,color:"#e2e8f0",lineHeight:1.5,marginBottom:8,maxHeight:40,overflow:"hidden"}},selNode.description||"No description"),
         h("div",{style:{display:"flex",gap:6}},
           h("button",{onClick:function(){drillInto(selNode);},disabled:ip,style:{flex:1,padding:"6px 8px",background:nc+"18",border:"1px solid "+nc+"44",color:nc,borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},ip?"LOADING...":"⬡ EXPAND"),
-          h("button",{onClick:function(){setVw("chat");setCi("Tell me about "+selNode.label+" and its connections");},style:{flex:1,padding:"6px 8px",background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.25)",color:"#a78bfa",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ QUERY")
+          h("button",{onClick:function(){setVw("chat");setCi("Tell me about "+selNode.label+" and its connections");},style:{flex:1,padding:"6px 8px",background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.25)",color:"#a78bfa",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ QUERY"),
+          h("button",{onClick:function(){shareNode(selNode).then(function(ok){alert(ok?"⟡ "+selNode.label+" shared to collective!":"Share failed");});},style:{flex:1,padding:"6px 8px",background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.2)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ SHARE")
         )
       ),
 
@@ -699,10 +1073,48 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
         ),
 
         vw==="journal"&&h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
-          h("div",{style:{padding:"6px 16px",borderBottom:"1px solid rgba(167,139,250,0.1)",display:"flex",justifyContent:"space-between",flexShrink:0}},
-            h("span",{style:{fontSize:9,color:"#a78bfa",letterSpacing:2}},"NEURAL GROWTH LOG"),
-            h("span",{style:{fontSize:8,color:"#e2e8f0"}},jn.length+" ENTRIES")
+          h("div",{style:{display:"flex",borderBottom:"1px solid rgba(0,212,255,0.07)",flexShrink:0}},
+            h("button",{onClick:function(){setJvw("mine");},style:{flex:1,padding:"8px",background:"none",border:"none",borderBottom:jvw==="mine"?"2px solid #a78bfa":"2px solid transparent",color:jvw==="mine"?"#a78bfa":"#475569",cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"MY BRAIN"),
+            h("button",{onClick:function(){setJvw("collective");if(cnodes.length===0){setCload(true);getSharedNodes().then(function(rows){setCnodes(rows||[]);setCload(false);}).catch(function(){setCload(false);});}},style:{flex:1,padding:"8px",background:"none",border:"none",borderBottom:jvw==="collective"?"2px solid #34d399":"2px solid transparent",color:jvw==="collective"?"#34d399":"#475569",cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"COLLECTIVE")
           ),
+          jvw==="collective"
+          ? h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
+              h("div",{style:{padding:"6px 16px",borderBottom:"1px solid rgba(52,211,153,0.08)",display:"flex",justifyContent:"space-between",flexShrink:0}},
+                h("span",{style:{fontSize:9,color:"#34d399",letterSpacing:2}},"COLLECTIVE NODES"),
+                h("button",{onClick:function(){setCload(true);getSharedNodes().then(function(rows){setCnodes(rows||[]);setCload(false);}).catch(function(){setCload(false);});},style:{fontSize:7,color:"#34d399",background:"none",border:"1px solid rgba(52,211,153,0.2)",borderRadius:3,cursor:"pointer",padding:"2px 6px",fontFamily:"inherit",letterSpacing:1}},"↺")
+              ),
+              cload&&h("div",{style:{padding:16,color:"#34d399",fontSize:9,letterSpacing:2,textAlign:"center",animation:"blink 0.8s ease-in-out infinite"}},"⟡ CONNECTING..."),
+              h("div",{style:{flex:1,overflowY:"auto",padding:"8px 12px",display:"flex",flexDirection:"column",gap:8}},
+                cnodes.length===0&&!cload&&h("div",{style:{padding:24,color:"#475569",fontSize:9,textAlign:"center",letterSpacing:1}},"No shared nodes yet. Share nodes from your brain to contribute."),
+                cnodes.map(function(row,i){
+                  var alreadyHave=graphNR.current.some(function(n){return String(n.id)===String(row.node_id);});
+                  return h("div",{key:i,style:{background:"rgba(52,211,153,0.04)",border:"1px solid rgba(52,211,153,0.12)",borderRadius:8,padding:"10px 12px"}},
+                    h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
+                      h("span",{style:{color:"#34d399",fontSize:11,fontWeight:"bold"}},(row.label||"").toUpperCase()),
+                      h("span",{style:{fontSize:8,color:"#475569"}},"from "+(row.shared_by||"anon"))
+                    ),
+                    h("div",{style:{fontSize:9,color:"#e2e8f0",lineHeight:1.7,marginBottom:6}},row.description||""),
+                    alreadyHave
+                    ? h("div",{style:{fontSize:7,color:"#475569",letterSpacing:1}},"✓ ALREADY IN YOUR BRAIN")
+                    : h("button",{onClick:function(){
+                        var nn={id:String(row.node_id),label:row.label,group:row.group||0,description:row.description||""};
+                        var nodes=graphNR.current;var links=stackR.current[0].links||[];
+                        if(!nodes.find(function(n){return n.id===nn.id;})){
+                          var an=nodes.concat([nn]);stackR.current[0].nodes=an;graphNR.current=an;
+                          rebuild(an,links,false);if(saveR.current)saveR.current(an,links);
+                          setCsel(nn);
+                        }
+                        setVw("graph");
+                      },style:{width:"100%",padding:"6px",background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.25)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:8,letterSpacing:2}},"⟡ ABSORB INTO MY BRAIN")
+                  );
+                })
+              )
+            )
+          : h("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
+              h("div",{style:{padding:"6px 16px",borderBottom:"1px solid rgba(167,139,250,0.1)",display:"flex",justifyContent:"space-between",flexShrink:0}},
+                h("span",{style:{fontSize:9,color:"#a78bfa",letterSpacing:2}},"NEURAL GROWTH LOG"),
+                h("span",{style:{fontSize:8,color:"#e2e8f0"}},jn.length+" ENTRIES")
+              ),
           jn.length===0
           ? h("div",{style:{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,padding:"24px"}},
               h("div",{style:{fontSize:9,color:"#e2e8f0",letterSpacing:2,textAlign:"center"}},"NO ENTRIES YET"),
@@ -710,13 +1122,30 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
             )
           : h("div",{style:{flex:1,overflowY:"auto",padding:"8px 12px",display:"flex",flexDirection:"column",gap:8}},
               jn.map(function(entry,i){
-                return h("button",{key:i,onClick:function(){flyTo(entry.nodeId);},style:{background:entry.type==="reflected"?"rgba(167,139,250,0.05)":"rgba(0,212,255,0.04)",border:"1px solid "+(entry.type==="reflected"?"rgba(167,139,250,0.15)":"rgba(0,212,255,0.12)"),borderRadius:8,padding:"10px 12px",cursor:"pointer",fontFamily:"inherit",textAlign:"left",width:"100%"}},
+                var isAuto=entry.type==="autonomous";
+                var isRef=entry.type==="reflected";
+                var entryColor=isAuto?"#34d399":isRef?"#a78bfa":"#00d4ff";
+                var entryBg=isAuto?"rgba(52,211,153,0.04)":isRef?"rgba(167,139,250,0.05)":"rgba(0,212,255,0.04)";
+                var entryBorder=isAuto?"rgba(52,211,153,0.15)":isRef?"rgba(167,139,250,0.15)":"rgba(0,212,255,0.12)";
+                return h("div",{key:i,style:{background:entryBg,border:"1px solid "+entryBorder,borderRadius:8,padding:"10px 12px",textAlign:"left",width:"100%"}},
                   h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
-                    h("span",{style:{color:entry.type==="reflected"?"#a78bfa":"#00d4ff",fontSize:11,fontWeight:"bold"}},entry.title.toUpperCase()),
+                    h("span",{style:{color:entryColor,fontSize:11,fontWeight:"bold"}},entry.title.toUpperCase()),
                     h("span",{style:{fontSize:8,color:"#e2e8f0"}},entry.time)
                   ),
                   h("div",{style:{fontSize:9,color:"#e2e8f0",lineHeight:1.7,marginBottom:4}},entry.detail),
-                  h("div",{style:{fontSize:7,color:entry.type==="reflected"?"#a78bfa":"#00d4ff",letterSpacing:2}},entry.type==="reflected"?"⟡ SELF-DISCOVERED":"⟡ LEARNED"," · TAP TO LOCATE")
+                  entry.observation&&h("div",{style:{fontSize:9,color:"#94a3b8",lineHeight:1.7,marginBottom:4,borderLeft:"2px solid "+entryColor+"44",paddingLeft:8,marginTop:4,fontStyle:"italic"}},
+                    """+entry.observation+"""
+                  ),
+                  h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
+                    h("div",{style:{fontSize:7,color:entryColor,letterSpacing:2}},
+                      isAuto?"◈ EXPERIMENT":isRef?"⟡ SELF-DISCOVERED":"⟡ LEARNED"
+                    ),
+                    entry.particleCode&&h("button",{onClick:function(){
+                      setVw("sandbox");setSbOpen(true);
+                      setTimeout(function(){runSbCode(entry.particleCode);setSbStat(entry.title);},500);
+                    },style:{fontSize:7,color:entryColor,background:"none",border:"1px solid "+entryColor+"44",borderRadius:3,cursor:"pointer",fontFamily:"inherit",padding:"1px 6px",letterSpacing:1}},"▶ REPLAY"),
+                    !isAuto&&h("button",{onClick:function(){flyTo(entry.nodeId);},style:{fontSize:7,color:"#475569",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",letterSpacing:1}},"LOCATE")
+                  )
                 );
               })
             )
@@ -742,8 +1171,60 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
         )
       ),
 
+      vw==="sandbox"&&h("div",{style:{position:"fixed",top:0,left:0,right:0,bottom:56,background:"#000308",display:"flex",flexDirection:"column",zIndex:50}},
+
+        // Sandbox header
+        h("div",{style:{padding:"8px 14px",borderBottom:"1px solid rgba(52,211,153,0.12)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,background:"rgba(0,3,8,0.9)"}},
+          h("span",{style:{color:"#34d399",fontSize:9,letterSpacing:3,fontWeight:"bold"}},"◈ SANDBOX"),
+          h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
+            sbStat&&h("span",{style:{fontSize:8,color:"#e2e8f0",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},sbStat),
+            h("button",{onClick:function(){
+              // Reset particles and stop code
+              sbUserFnR.current=null;
+              window.__sbUserFn=null;
+              sbParticlesR.current=[];
+              for(var i=0;i<6000;i++){
+                var r=Math.pow(Math.random(),0.4)*100;
+                var th=Math.random()*Math.PI*2;var ph=Math.acos(2*Math.random()-1);
+                sbParticlesR.current.push({x:r*Math.sin(ph)*Math.cos(th),y:r*Math.sin(ph)*Math.sin(th),z:r*Math.cos(ph),vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.3,vz:(Math.random()-0.5)*0.3,r:0.2,g:0.8,b:1.0,a:0.85,size:0.6+Math.random()*1.0});
+              }
+              sbTargetRadiusR.current=350;
+              setSbStat("");
+            },style:{background:"none",border:"1px solid rgba(248,113,113,0.2)",borderRadius:3,cursor:"pointer",padding:"2px 8px",color:"#f87171",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"↺ RESET"),
+            h("span",{style:{fontSize:7,color:"#1e3a5f",letterSpacing:1}},sbParticlesR.current.length+" PARTICLES")
+          )
+        ),
+
+        // Main canvas
+        h("div",{style:{flex:1,position:"relative",overflow:"hidden"}},
+          !sbOpen
+          ? h("div",{style:{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14}},
+              h("div",{style:{fontSize:9,color:"#34d399",letterSpacing:4}},"◈ ATLAS SANDBOX"),
+              h("div",{style:{fontSize:9,color:"#475569",textAlign:"center",lineHeight:2,maxWidth:240}},"A particle physics space Atlas uses to explore and visualise ideas. Every hour Atlas runs an experiment here and logs its observations."),
+              h("button",{onClick:function(){setSbOpen(true);},style:{marginTop:8,padding:"9px 22px",background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.3)",color:"#34d399",borderRadius:6,cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:3}},"⟡ ENTER")
+            )
+          : h("div",{ref:sbMountR,style:{width:"100%",height:"100%",cursor:"grab",touchAction:"none"},
+              onPointerDown:onSbPD,onPointerMove:onSbPM,onPointerUp:onSbPU,onPointerLeave:onSbPU,
+              onWheel:onSbWhl,onTouchStart:onSbTS,onTouchMove:onSbTM,onTouchEnd:onSbTE})
+        ),
+
+        // Experiments log strip at bottom
+        sbExperimentsR.current.length>0&&h("div",{style:{flexShrink:0,maxHeight:90,overflowX:"auto",display:"flex",gap:8,padding:"6px 12px",borderTop:"1px solid rgba(52,211,153,0.08)",background:"rgba(0,3,8,0.95)",alignItems:"center"}},
+          h("span",{style:{fontSize:7,color:"#34d399",letterSpacing:2,flexShrink:0}},"EXPERIMENTS:"),
+          sbExperimentsR.current.slice(0,8).map(function(exp,i){
+            return h("button",{key:i,onClick:function(){
+              // Run this experiment's particle code
+              runSbCode(exp.code);
+              setSbStat(exp.title);
+            },style:{flexShrink:0,padding:"4px 10px",background:"rgba(52,211,153,0.06)",border:"1px solid rgba(52,211,153,0.18)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:7,letterSpacing:1,whiteSpace:"nowrap"}},
+              exp.title.slice(0,20)+(exp.title.length>20?"...":"")
+            );
+          })
+        )
+      ),
+
       h("div",{style:{position:"fixed",bottom:0,left:0,right:0,height:56,display:"flex",alignItems:"stretch",borderTop:"1px solid rgba(0,212,255,0.07)",background:"rgba(2,7,18,0.97)",backdropFilter:"blur(20px)",zIndex:999}},
-        [{id:"graph",label:"⬡  GRAPH"},{id:"journal",label:"⊕  JOURNAL"},{id:"chat",label:"⟡  QUERY"}].map(function(tab){
+        [{id:"graph",label:"⬡  GRAPH"},{id:"journal",label:"⊕  JOURNAL"},{id:"chat",label:"⟡  QUERY"},{id:"sandbox",label:"◈  SANDBOX"}].map(function(tab){
           return h("button",{key:tab.id,onClick:function(){setVw(tab.id);},style:{flex:1,background:"transparent",border:"none",borderTop:"2px solid "+(vw===tab.id?"#00d4ff":"transparent"),color:vw===tab.id?"#00d4ff":"#2d4a6a",cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:2,transition:"all 0.2s",paddingTop:2}},tab.label);
         })
       )
