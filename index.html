@@ -749,8 +749,7 @@ function Atlas(){
         // Step 4: Generate observation after seeing the particle effect
         groqCall([
           {role:"system",content:"You are Atlas. You just ran a particle physics simulation to represent an insight. Write a brief personal observation (2 sentences) about what you noticed or what it made you think about. Be genuine and curious."},
-          {role:"user",content:"Insight: "+insight+"
-Simulation described as: "+particleDesc}
+          {role:"user",content:"Insight: "+insight+"\nSimulation described as: "+particleDesc}
         ],200).then(function(observation){
           // Log everything to journal with full context
           setJn(function(prev){
@@ -1146,7 +1145,7 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
                   ),
                   h("div",{style:{fontSize:9,color:"#e2e8f0",lineHeight:1.7,marginBottom:4}},entry.detail),
                   entry.observation&&h("div",{style:{fontSize:9,color:"#94a3b8",lineHeight:1.7,marginBottom:4,borderLeft:"2px solid "+entryColor+"44",paddingLeft:8,marginTop:4,fontStyle:"italic"}},
-                    """+entry.observation+"""
+                    "'"+entry.observation+"'"
                   ),
                   h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
                     h("div",{style:{fontSize:7,color:entryColor,letterSpacing:2}},
