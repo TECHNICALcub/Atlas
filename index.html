@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Atlas"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#020712"/>
+<!-- Atlas v9.3 build 202605191305-->
 <title>Atlas</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1219,17 +1220,7 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
         ),
 
         // Experiments log strip at bottom
-        sbExperimentsR.current.length>0&&h("div",{style:{flexShrink:0,maxHeight:90,overflowX:"auto",display:"flex",gap:8,padding:"6px 12px",borderTop:"1px solid rgba(52,211,153,0.08)",background:"rgba(0,3,8,0.95)",alignItems:"center"}},
-          h("span",{style:{fontSize:7,color:"#34d399",letterSpacing:2,flexShrink:0}},"EXPERIMENTS:"),
-          sbExperimentsR.current.slice(0,8).map(function(exp,i){
-            return h("button",{key:i,onClick:function(){
-              // Run this experiment's particle code
-              runSbCode(exp.code);
-              setSbStat(exp.title);
-            },style:{flexShrink:0,padding:"4px 10px",background:"rgba(52,211,153,0.06)",border:"1px solid rgba(52,211,153,0.18)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:7,letterSpacing:1,whiteSpace:"nowrap"}},
-              exp.title.slice(0,20)+(exp.title.length>20?"...":"")
-            );
-          })
+        sbExperimentsR.current.length>0&&h("div",{style:{flexShrink:0,maxHeight:90,overflowX:"auto",display:"flex",gap:8,padding:"6px 12px",borderTop:"1px solid rgba(52,211,153,0.08)",background:"rgba(0,3,8,0.95)",alignItems:"center"}},h("span",{style:{fontSize:7,color:"#34d399",letterSpacing:2,flexShrink:0}},"EXPERIMENTS:"),sbExperimentsR.current.slice(0,8).map(function(exp,i){return h("button",{key:i,onClick:function(){runSbCode(exp.code);setSbStat(exp.title);},style:{flexShrink:0,padding:"4px 10px",background:"rgba(52,211,153,0.06)",border:"1px solid rgba(52,211,153,0.18)",color:"#34d399",borderRadius:4,cursor:"pointer",fontFamily:"inherit",fontSize:7,letterSpacing:1,whiteSpace:"nowrap"}},exp.title.slice(0,20)+(exp.title.length>20?"...":""));})
         )
       ),
 
