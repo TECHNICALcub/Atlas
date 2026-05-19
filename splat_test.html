@@ -47,38 +47,36 @@ body{background:#000308;overflow:hidden;font-family:'Courier New',monospace;colo
   </div>
   <div id="tab-code">
     <textarea id="editor" spellcheck="false">// Atlas Particle Sandbox
-// Available: particles[], time, N
-// Each particle: {x,y,z,vx,vy,vz,r,g,b,a,size}
-// Modify particles directly - runs every frame
+// particles[], time, N
+// Each particle: x,y,z, vx,vy,vz, r,g,b,a, size
 
-// Default: orbit with turbulence
-var cx=0,cy=0,cz=0;
 for(var i=0;i<N;i++){
   var p=particles[i];
-  var dx=cx-p.x, dy=cy-p.y, dz=cz-p.z;
-  var dist=Math.sqrt(dx*dx+dy*dy+dz*dz)+0.01;
-  
-  // Gravitational pull toward centre
-  var gravity=0.08/dist;
-  p.vx+=dx*gravity;
-  p.vy+=dy*gravity;
-  p.vz+=dz*gravity;
-  
-  // Turbulence
-  p.vx+=Math.sin(time*0.7+p.y*0.04)*0.06;
-  p.vy+=Math.cos(time*0.5+p.x*0.04)*0.06;
-  p.vz+=Math.sin(time*0.3+p.z*0.04)*0.04;
-  
-  // Damping
-  p.vx*=0.96; p.vy*=0.96; p.vz*=0.96;
-  
+
+  // Gentle perlin-like drift - no gravity
+  p.vx+=Math.sin(time*0.4+p.y*0.02+p.z*0.01)*0.03;
+  p.vy+=Math.cos(time*0.3+p.x*0.02+p.z*0.01)*0.03;
+  p.vz+=Math.sin(time*0.5+p.x*0.01+p.y*0.02)*0.02;
+
+  // Very light damping - particles keep momentum
+  p.vx*=0.99; p.vy*=0.99; p.vz*=0.99;
+
   // Move
   p.x+=p.vx; p.y+=p.vy; p.z+=p.vz;
-  
-  // Colour by distance from centre
-  var d=dist/120;
-  p.r=d*0.3; p.g=1.0-d*0.4; p.b=1.0;
-  p.a=0.9;
+
+  // Soft boundary - nudge back if too far, no hard wall
+  var dist=Math.sqrt(p.x*p.x+p.y*p.y+p.z*p.z);
+  if(dist>200){
+    p.vx-=p.x*0.002;
+    p.vy-=p.y*0.002;
+    p.vz-=p.z*0.002;
+  }
+
+  // Colour shifts slowly over time
+  p.r=0.2+0.4*Math.sin(time*0.2+p.x*0.01);
+  p.g=0.6+0.4*Math.cos(time*0.15+p.y*0.01);
+  p.b=1.0;
+  p.a=0.85;
 }</textarea>
     <div id="run-bar">
       <button id="run-btn" onclick="runCode()">▶ RUN</button>
@@ -205,11 +203,24 @@ function uploadParticles(){
 function runCode(){
   var code=document.getElementById("editor").value;
   try{
-    userFn=new Function("particles","time","N",code);
-    setStatus("RUNNING","#34d399");
-    log("Code compiled and running.");
+    // Remove old injected script
+    var old=document.getElementById("user-fn-script");
+    if(old)old.remove();
+    // Wrap user code in a named function on window
+    var wrapped="window.__userFn=function(particles,time,N){\n"+code+"\n};";
+    var s=document.createElement("script");
+    s.id="user-fn-script";
+    s.textContent=wrapped;
+    document.head.appendChild(s);
+    if(typeof window.__userFn==="function"){
+      userFn=window.__userFn;
+      setStatus("RUNNING","#34d399");
+      log("Code running.");
+    } else {
+      throw new Error("Function did not compile");
+    }
   }catch(e){
-    setStatus("ERROR","#f87171");
+    setStatus("ERROR: "+e.message,"#f87171");
     log("Error: "+e.message);
     userFn=null;
   }
