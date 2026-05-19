@@ -227,16 +227,9 @@ function runCode(){
 }
 
 // ── Main loop ─────────────────────────────────────────────────
-var rotX=0,rotY=0,targetRX=0,targetRY=0;
 function animate(){
   requestAnimationFrame(animate);
   simTime+=0.016;
-  rotX+=(targetRX-rotX)*0.05;
-  rotY+=(targetRY-rotY)*0.05;
-  cam.position.x=Math.sin(rotY)*Math.cos(rotX)*300;
-  cam.position.y=Math.sin(rotX)*300;
-  cam.position.z=Math.cos(rotY)*Math.cos(rotX)*300;
-  cam.lookAt(0,0,0);
   if(userFn){
     try{userFn(particles,simTime,N);}
     catch(e){log("Runtime error: "+e.message);userFn=null;setStatus("ERROR","#f87171");}
@@ -248,30 +241,68 @@ animate();
 // Auto-run default code
 runCode();
 
-// ── Orbit controls ───────────────────────────────────────────
-var isDrag=false,lastX=0,lastY=0,pinchDist=null,camR=300;
-ren.domElement.addEventListener("mousedown",function(e){isDrag=true;lastX=e.clientX;lastY=e.clientY;});
-ren.domElement.addEventListener("mousemove",function(e){if(!isDrag)return;targetRY+=(e.clientX-lastX)*0.007;targetRX+=(e.clientY-lastY)*0.007;lastX=e.clientX;lastY=e.clientY;});
-ren.domElement.addEventListener("mouseup",function(){isDrag=false;});
-ren.domElement.addEventListener("wheel",function(e){camR=Math.max(80,Math.min(800,camR+e.deltaY*0.5));});
+// ── Trackball orbit controls (smooth quaternion-based) ───────
+var tbQ=new THREE.Quaternion();
+var tbVelDx=0,tbVelDy=0;
+var tbRadius=400,tbTargetRadius=400;
+var tbDragging=false,tbLastX=0,tbLastY=0;
+var tbPinch=null,tbPd=null;
+
+function applyTB(dx,dy){
+  var sens=0.005;
+  var qH=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-dx*sens);
+  var ax=new THREE.Vector3(1,0,0).applyQuaternion(tbQ);
+  var qV=new THREE.Quaternion().setFromAxisAngle(ax,-dy*sens);
+  tbQ.premultiply(qH).premultiply(qV).normalize();
+}
+function applyTBCam(){
+  var p=new THREE.Vector3(0,0,tbRadius).applyQuaternion(tbQ);
+  var u=new THREE.Vector3(0,1,0).applyQuaternion(tbQ);
+  cam.position.copy(p);cam.up.copy(u);cam.lookAt(0,0,0);
+}
+
+ren.domElement.addEventListener("mousedown",function(e){tbDragging=true;tbLastX=e.clientX;tbLastY=e.clientY;tbVelDx=0;tbVelDy=0;});
+ren.domElement.addEventListener("mousemove",function(e){
+  if(!tbDragging)return;
+  var dx=e.clientX-tbLastX,dy=e.clientY-tbLastY;
+  applyTB(dx,dy);applyTBCam();
+  tbVelDx=dx*0.005;tbVelDy=dy*0.005;
+  tbLastX=e.clientX;tbLastY=e.clientY;
+});
+ren.domElement.addEventListener("mouseup",function(){tbDragging=false;});
+ren.domElement.addEventListener("mouseleave",function(){tbDragging=false;});
+ren.domElement.addEventListener("wheel",function(e){tbTargetRadius=Math.max(50,Math.min(1500,tbTargetRadius+e.deltaY*0.6));});
+
 ren.domElement.addEventListener("touchstart",function(e){
-  if(e.touches.length===1){isDrag=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}
-  else if(e.touches.length===2){pinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
+  if(e.touches.length===1){tbDragging=true;tbLastX=e.touches[0].clientX;tbLastY=e.touches[0].clientY;tbVelDx=0;tbVelDy=0;}
+  else if(e.touches.length===2){tbDragging=false;tbPinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
 });
 ren.domElement.addEventListener("touchmove",function(e){
   e.preventDefault();
-  if(e.touches.length===1&&isDrag){targetRY+=(e.touches[0].clientX-lastX)*0.007;targetRX+=(e.touches[0].clientY-lastY)*0.007;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}
-  else if(e.touches.length===2&&pinchDist){var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);camR=Math.max(80,Math.min(800,camR-(d-pinchDist)*1.5));pinchDist=d;}
+  if(e.touches.length===1&&tbDragging){
+    var dx=e.touches[0].clientX-tbLastX,dy=e.touches[0].clientY-tbLastY;
+    applyTB(dx,dy);applyTBCam();
+    tbVelDx=dx*0.005;tbVelDy=dy*0.005;
+    tbLastX=e.touches[0].clientX;tbLastY=e.touches[0].clientY;
+  } else if(e.touches.length===2&&tbPinch!=null){
+    var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    tbTargetRadius=Math.max(50,Math.min(1500,tbTargetRadius-(d-tbPinch)*1.8));
+    tbPinch=d;
+  }
 },{passive:false});
-ren.domElement.addEventListener("touchend",function(){isDrag=false;pinchDist=null;});
+ren.domElement.addEventListener("touchend",function(){tbDragging=false;tbPinch=null;});
 window.addEventListener("resize",function(){W=window.innerWidth;H=window.innerHeight;ren.setSize(W,H);cam.aspect=W/H;cam.updateProjectionMatrix();});
 
-// Update camera radius in loop
+// Apply inertia and smooth zoom each frame
 setInterval(function(){
-  var curr=Math.sqrt(cam.position.x*cam.position.x+cam.position.y*cam.position.y+cam.position.z*cam.position.z);
-  var scale=camR/curr;
-  cam.position.multiplyScalar(scale);
-  cam.lookAt(0,0,0);
+  if(!tbDragging){
+    tbVelDx*=0.92;tbVelDy*=0.92;
+    if(Math.abs(tbVelDx)>0.0001||Math.abs(tbVelDy)>0.0001){
+      applyTB(tbVelDx/0.005,tbVelDy/0.005);
+    }
+  }
+  tbRadius+=(tbTargetRadius-tbRadius)*0.08;
+  applyTBCam();
 },16);
 
 // ── Tab switching ────────────────────────────────────────────
@@ -295,11 +326,20 @@ function sendChat(){
   appendMsg(msg,"user");
   chatHistory.push({role:"user",content:msg});
   setStatus("ATLAS THINKING...","#a78bfa");
+  // Keep history lean - system prompt + last 6 exchanges
+  var trimmed=[chatHistory[0]].concat(chatHistory.slice(-6));
   fetch("https://api.groq.com/openai/v1/chat/completions",{
     method:"POST",
     headers:{"Content-Type":"application/json","Authorization":"Bearer "+KEY},
-    body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:1200,messages:chatHistory})
+    body:JSON.stringify({model:"llama-3.3-70b-versatile",max_tokens:1200,messages:trimmed})
   }).then(function(r){return r.json();}).then(function(d){
+    if(d.error){
+      var errMsg=d.error.message||"API error";
+      appendMsg("Error: "+errMsg,"atlas");
+      setStatus("ERROR","#f87171");
+      log("Groq error: "+errMsg);
+      return;
+    }
     var reply=d.choices&&d.choices[0]?d.choices[0].message.content:"";
     if(!reply)return;
     chatHistory.push({role:"assistant",content:reply});
@@ -314,7 +354,11 @@ function sendChat(){
       runCode();
       log("Atlas wrote and ran new code.");
     }
-  }).catch(function(e){setStatus("ERROR","#f87171");log("API error: "+e.message);});
+  }).catch(function(e){
+    appendMsg("Connection error: "+e.message,"atlas");
+    setStatus("ERROR","#f87171");
+    log("Fetch error: "+e.message);
+  });
 }
 
 function appendMsg(text,role){
