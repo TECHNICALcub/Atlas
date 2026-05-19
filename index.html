@@ -33,6 +33,18 @@ html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:
   <div class="note">Get a free key at console.groq.com</div>
 </div>
 <div id="root" style="display:none;pointer-events:none"></div>
+<script>
+window.onerror=function(msg,src,line,col,err){
+  var el=document.getElementById("setup");
+  if(el){
+    var e2=document.createElement("p");
+    e2.style.cssText="color:red;font-size:9px;font-family:monospace;padding:8px;max-width:300px;text-align:center";
+    e2.textContent="JS ERROR: "+msg+" (L"+line+")";
+    el.appendChild(e2);
+  }
+  return false;
+};
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -273,7 +285,7 @@ function Atlas(){
   var _sn=u(null);var selNode=_sn[0];var setSelNode=_sn[1];
   var _vw=u("graph");var vw=_vw[0];var setVw=_vw[1];
   var _ci=u("");var ci=_ci[0];var setCi=_ci[1];
-  var _ms=u([{role:"assistant",content:window.__NAME__&&window.__NAME__.length>2&&!/^[a-z0-9]{8}$/.test(window.__NAME__)?"ATLAS v9.2 ONLINE. Good to have you back, "+window.__NAME__+". Neural graph active.":"ATLAS v9.2 ONLINE. Neural graph active — before we begin, what should I call you?"}]);
+  var _ms=u([{role:"assistant",content:(function(){var n=window.__NAME__||"";return n&&n.length>2&&n.indexOf("_")<0&&isNaN(n.slice(0,1))?"ATLAS v9.2 ONLINE. Good to have you back, "+n+". Neural graph active.":"ATLAS v9.2 ONLINE. Neural graph active — before we begin, what should I call you?";}())}]);
   var msgs=_ms[0];var setMsgs=_ms[1];
   var _ip=u(false);var ip=_ip[0];var setIp=_ip[1];
   var _st=u({nodes:SEED_NODES.length,links:SEED_LINKS.length,sub:0});var stats=_st[0];var setSt=_st[1];
@@ -755,7 +767,7 @@ Simulation described as: "+particleDesc}
 
           // Also try to grow the brain from this insight
           var eids=nodes.map(function(n){return n.id;}).join(",");
-          learnFrom(insight,"",nodes,stackR.current[0].links||[]);
+          if(insight&&nodes&&nodes.length>0)learnFrom(insight,"",nodes,stackR.current[0].links||[]);
 
           // GitHub search for richer code in background (zero tokens)
           searchGithubForParticle(picks[0].label).then(function(ghCode){
