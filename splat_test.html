@@ -107,23 +107,31 @@ var userFn = null;
 var simTime = 0;
 
 function resetParticles(){
-  particles = [];
+  // Stop any running code
+  userFn=null;
+  window.__userFn=null;
+  document.getElementById("editor").value="// Particles reset - write new code or ask Atlas";
+  setStatus("READY","#34d399");
+  // Reset particle positions
+  particles=[];
   for(var i=0;i<N;i++){
-    var r = Math.pow(Math.random(),0.4)*120;
-    var th = Math.random()*Math.PI*2;
-    var ph = Math.acos(2*Math.random()-1);
+    var r=Math.pow(Math.random(),0.4)*120;
+    var th=Math.random()*Math.PI*2;
+    var ph=Math.acos(2*Math.random()-1);
     particles.push({
-      x: r*Math.sin(ph)*Math.cos(th),
-      y: r*Math.sin(ph)*Math.sin(th),
-      z: r*Math.cos(ph),
+      x:r*Math.sin(ph)*Math.cos(th),
+      y:r*Math.sin(ph)*Math.sin(th),
+      z:r*Math.cos(ph),
       vx:(Math.random()-0.5)*0.5,
       vy:(Math.random()-0.5)*0.5,
       vz:(Math.random()-0.5)*0.5,
-      r:0.2, g:0.8, b:1.0, a:0.9,
-      size: 0.5+Math.random()*1.2
+      r:0.2,g:0.8,b:1.0,a:0.9,
+      size:0.5+Math.random()*1.2
     });
   }
-  log("Particles reset (N="+N+")");
+  // Reset camera
+  tbTargetRadius=400;
+  log("Full reset — particles free, code cleared.");
 }
 
 resetParticles();
@@ -216,6 +224,20 @@ function runCode(){
       userFn=window.__userFn;
       setStatus("RUNNING","#34d399");
       log("Code running.");
+      // Auto-fit camera after 800ms to let particles settle into position
+      setTimeout(function(){
+        var minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,minZ=Infinity,maxZ=-Infinity;
+        particles.forEach(function(p){
+          if(p.x<minX)minX=p.x;if(p.x>maxX)maxX=p.x;
+          if(p.y<minY)minY=p.y;if(p.y>maxY)maxY=p.y;
+          if(p.z<minZ)minZ=p.z;if(p.z>maxZ)maxZ=p.z;
+        });
+        var sizeX=maxX-minX,sizeY=maxY-minY,sizeZ=maxZ-minZ;
+        var maxSize=Math.max(sizeX,sizeY,sizeZ,10);
+        // Set radius so the whole thing fills about 70% of view
+        tbTargetRadius=Math.max(60,Math.min(1200,maxSize*1.5));
+        log("Camera fitted to scene (size ~"+Math.round(maxSize)+")");
+      },800);
     } else {
       throw new Error("Function did not compile");
     }
