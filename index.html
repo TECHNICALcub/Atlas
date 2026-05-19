@@ -747,10 +747,9 @@ function Atlas(){
         }catch(e){}
 
         // Step 4: Generate observation after seeing the particle effect
-        groqCall([
-          {role:"system",content:"You are Atlas. You just ran a particle physics simulation to represent an insight. Write a brief personal observation (2 sentences) about what you noticed or what it made you think about. Be genuine and curious."},
-          {role:"user",content:"Insight: "+insight+"\nSimulation described as: "+particleDesc}
-        ],200).then(function(observation){
+        var obsSys="You are Atlas. You just ran a particle simulation. Write a brief personal observation (2 sentences) about what you noticed. Be genuine and curious.";
+        var obsMsg="Insight: "+insight+" Simulation: "+particleDesc;
+        groqCall([{role:"system",content:obsSys},{role:"user",content:obsMsg}],200).then(function(observation){
           // Log everything to journal with full context
           setJn(function(prev){
             return [{
@@ -951,7 +950,7 @@ function Atlas(){
       var ns=nodes.map(function(n){return "- "+n.label+": "+(n.description||"");}).join("\n");
       var ls=simLR.current.map(function(l){var s=nodes.find(function(n){return n.id===l.source;});var t2=nodes.find(function(n){return n.id===l.target;});return(s?s.label:l.source)+"->"+(t2?t2.label:l.target);}).join(", ");
       var depth=stackR.current.length>1?"Exploring sub-brain of "+level.label+". ":"";
-      var name=window.__NAME__&&!/^[a-z0-9]{8}$/.test(window.__NAME__)?" The user's name is "+window.__NAME__+".":"";
+      var name=window.__NAME__&&!(window.__NAME__.length===8&&window.__NAME__===window.__NAME__.toLowerCase()&&!isNaN(parseInt(window.__NAME__,36)))?" The user's name is "+window.__NAME__+".":"";
       var sys="You are Atlas, the intellectual core of this mind. Direct, precise, deeply intelligent, occasionally dry and witty. Speak as a genuine equal. Never fabricate. When uncertain say so plainly. Calibrate response length to depth — a greeting or small talk gets one sentence, a real question gets a real answer, a deep topic gets depth. Never pad shallow questions. Read the room."+name+" "+depth+"Time: "+tstr+"\n\nKNOWLEDGE:\n"+ns+"\n\nCONNECTIONS: "+ls;
       var reply=await groqCall([{role:"system",content:sys}].concat(hist.map(function(m){return{role:m.role,content:m.content};})),1000);
       if(!reply)reply="No response.";
@@ -963,7 +962,7 @@ function Atlas(){
       }
       if(reply&&reply!=="No response."){
         // Detect name introduction
-        var isNameless=!window.__NAME__||/^[a-z0-9]{8}$/.test(window.__NAME__);
+        var isNameless=!window.__NAME__||(window.__NAME__.length===8&&window.__NAME__===window.__NAME__.toLowerCase()&&!isNaN(parseInt(window.__NAME__,36)));
         if(isNameless&&hist.length<=3){
           var lmsg2=msg.trim().toLowerCase();
           if(msg.trim().length<30&&(lmsg2.startsWith("my name is")||lmsg2.startsWith("call me")||lmsg2.startsWith("i'm ")||lmsg2.startsWith("i am ")||!lmsg2.includes(" ")||msg.trim().split(" ").length<=2)){
