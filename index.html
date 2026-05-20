@@ -23,11 +23,24 @@ html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:
 ::-webkit-scrollbar{width:2px}
 ::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.08);border-radius:2px}
 </style>
+<style>
+:root {
+  --sat: env(safe-area-inset-top, 24px);
+  --sab: env(safe-area-inset-bottom, 48px);
+}
+body {
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  box-sizing: border-box;
+  background: #020712;
+}
+</style>
 </head>
 <body>
 <div id="setup">
   <h1>A T L A S</h1>
   <p style="font-size:9px;color:#1e3a5f;letter-spacing:2px;font-family:'Courier New',monospace">PERSONAL AI BRAIN</p>
+  <input type="password" id="accessCode" placeholder="Access code" autocomplete="off" spellcheck="false"/>
   <input type="text" id="displayName" placeholder="Your name (shown in collective)" autocomplete="off" spellcheck="false"/>
   <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" spellcheck="false"/>
   <button onclick="initAtlas()">INITIALISE ATLAS</button>
@@ -137,6 +150,8 @@ var atlasStorage={
 function resetKey(){if(window.confirm("Reset API key?")){localStorage.removeItem("atlas_key");localStorage.removeItem("atlas_name");location.reload();}}
 
 function initAtlas(){
+  var code=document.getElementById("accessCode").value.trim();
+  if(code!=="11Mobiles*"){alert("Invalid access code");return;}
   var name=document.getElementById("displayName").value.trim();
   var key=document.getElementById("apiKey").value.trim();
   if(!key){alert("Please enter your Groq API key");return;}
@@ -1041,7 +1056,7 @@ function Atlas(){
   var inSub=bc.length>1;
   function dot(col,anim){return h("div",{style:{width:6,height:6,borderRadius:"50%",background:col,boxShadow:"0 0 8px "+col,animation:"blink "+(anim||"1.5s")+" ease-in-out infinite"}});}
 
-  return h("div",{style:{background:"#020712",height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden",userSelect:"none",fontFamily:"'Courier New',Courier,monospace",color:"#e2e8f0"}},
+  return h("div",{style:{background:"#020712",height:"100vh",paddingTop:"env(safe-area-inset-top)",paddingBottom:"env(safe-area-inset-bottom)",display:"flex",flexDirection:"column",overflow:"hidden",userSelect:"none",fontFamily:"'Courier New',Courier,monospace",color:"#e2e8f0"}},
 
     !bd&&h("div",{style:{position:"fixed",inset:0,background:"#020712",zIndex:100,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}},
       h("div",{style:{fontSize:30,letterSpacing:16,color:"#00d4ff",fontWeight:"bold",textShadow:"0 0 40px #00d4ff88"}},"A T L A S"),
