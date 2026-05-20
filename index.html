@@ -52,6 +52,9 @@ window.onerror=function(msg,src,line,col,err){
 <script>
 var SUPABASE_URL="https://xzqytoszefzwsvnwtcdu.supabase.co";
 var SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6cXl0b3N6ZWZ6d3N2bnd0Y2R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMDU3NjIsImV4cCI6MjA5NDc4MTc2Mn0.4FlX1VmPtC80YJoMqXVKaPwKjEW6HZ7W8Kx09B5W4gc";
+var ELEVENLABS_KEY="sk_d5b50bb7db84fdfb7c7a11ba4f1a793c697e2e412f5ddeb1";
+var ELEVENLABS_VOICE="CQcj2MsUgZyAgfHH6yJV";
+
 var PALETTE=["#00d4ff","#a78bfa","#34d399","#fbbf24","#f87171","#fb7185","#38bdf8","#c084fc","#6ee7b7","#fcd34d"];
 var ROOT_IDS=new Set(["second-brain","artificial-intelligence","learning","obsidian","memory","neural-networks","knowledge","creativity","consciousness","neuroplasticity","pattern-recognition","systems-thinking","philosophy","language","mathematics","physics","evolution","flow-state","intuition","emergence","information-theory","quantum-mechanics","stoicism","productivity"]);
 var SEED_NODES=[
@@ -956,10 +959,22 @@ function Atlas(){
       var reply=await groqCall([{role:"system",content:sys}].concat(hist.map(function(m){return{role:m.role,content:m.content};})),1000);
       if(!reply)reply="No response.";
       setMsgs(hist.concat([{role:"assistant",content:reply}]));
-      if(ve&&window.speechSynthesis){
-        window.speechSynthesis.cancel();var u2=new SpeechSynthesisUtterance(reply.slice(0,350));u2.rate=0.82;u2.pitch=0.65;u2.volume=1.0;
-        var voices=window.speechSynthesis.getVoices();var pref=voices.find(function(v){return v.name.includes("Google UK English Male");})||voices.find(function(v){return v.lang==="en-GB";});
-        if(pref)u2.voice=pref;window.speechSynthesis.speak(u2);
+      if(ve){
+        // ElevenLabs TTS
+        var ttsText=reply.slice(0,500);
+        fetch("https://api.elevenlabs.io/v1/text-to-speech/"+ELEVENLABS_VOICE+"/stream",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","xi-api-key":ELEVENLABS_KEY},
+          body:JSON.stringify({text:ttsText,model_id:"eleven_turbo_v2",voice_settings:{stability:0.5,similarity_boost:0.75,style:0.3,use_speaker_boost:true}})
+        }).then(function(r){return r.arrayBuffer();}).then(function(buf){
+          var ctx=new (window.AudioContext||window.webkitAudioContext)();
+          ctx.decodeAudioData(buf,function(decoded){
+            var src=ctx.createBufferSource();src.buffer=decoded;src.connect(ctx.destination);src.start(0);
+          });
+        }).catch(function(e){
+          // Fallback to browser TTS if ElevenLabs fails
+          if(window.speechSynthesis){window.speechSynthesis.cancel();var u2=new SpeechSynthesisUtterance(ttsText);u2.rate=0.82;u2.pitch=0.65;window.speechSynthesis.speak(u2);}
+        });
       }
       if(reply&&reply!=="No response."){
         // Detect name introduction
