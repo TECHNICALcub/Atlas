@@ -977,7 +977,7 @@ function Atlas(){
           });
           audio.onended=function(){URL.revokeObjectURL(url2);};
         }).catch(function(e){
-          console.log("ElevenLabs failed:",e.message);
+          console.log("ElevenLabs failed:",e.message);alert("TTS error: "+e.message);
           if(window.speechSynthesis){window.speechSynthesis.cancel();var u2=new SpeechSynthesisUtterance(ttsText);u2.rate=0.82;u2.pitch=0.65;window.speechSynthesis.speak(u2);}
         });
       }
