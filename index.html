@@ -962,17 +962,22 @@ function Atlas(){
       if(ve){
         // ElevenLabs TTS
         var ttsText=reply.slice(0,500);
-        fetch("https://api.elevenlabs.io/v1/text-to-speech/"+ELEVENLABS_VOICE+"/stream",{
+        fetch("https://api.elevenlabs.io/v1/text-to-speech/"+ELEVENLABS_VOICE,{
           method:"POST",
-          headers:{"Content-Type":"application/json","xi-api-key":ELEVENLABS_KEY},
+          headers:{"Content-Type":"application/json","xi-api-key":ELEVENLABS_KEY,"Accept":"audio/mpeg"},
           body:JSON.stringify({text:ttsText,model_id:"eleven_turbo_v2",voice_settings:{stability:0.5,similarity_boost:0.75,style:0.3,use_speaker_boost:true}})
-        }).then(function(r){return r.arrayBuffer();}).then(function(buf){
-          var ctx=new (window.AudioContext||window.webkitAudioContext)();
-          ctx.decodeAudioData(buf,function(decoded){
-            var src=ctx.createBufferSource();src.buffer=decoded;src.connect(ctx.destination);src.start(0);
+        }).then(function(r){
+          if(!r.ok)throw new Error("ElevenLabs "+r.status);
+          return r.blob();
+        }).then(function(blob){
+          var url2=URL.createObjectURL(blob);
+          var audio=new Audio(url2);
+          audio.play().catch(function(){
+            if(window.speechSynthesis){window.speechSynthesis.cancel();var u2=new SpeechSynthesisUtterance(ttsText);u2.rate=0.82;u2.pitch=0.65;window.speechSynthesis.speak(u2);}
           });
+          audio.onended=function(){URL.revokeObjectURL(url2);};
         }).catch(function(e){
-          // Fallback to browser TTS if ElevenLabs fails
+          console.log("ElevenLabs failed:",e.message);
           if(window.speechSynthesis){window.speechSynthesis.cancel();var u2=new SpeechSynthesisUtterance(ttsText);u2.rate=0.82;u2.pitch=0.65;window.speechSynthesis.speak(u2);}
         });
       }
