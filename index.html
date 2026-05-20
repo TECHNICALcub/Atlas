@@ -319,6 +319,9 @@ function Atlas(){
   var _il=u(false);var il=_il[0];var setIl=_il[1];
   var _tr=u("");var tr2=_tr[0];var setTr=_tr[1];
   var _jvw=u("mine");var jvw=_jvw[0];var setJvw=_jvw[1];
+  var _tone=u("neutral");var tone=_tone[0];var setTone=_tone[1];
+  var _proactive=u(null);var proactive=_proactive[0];var setProactive=_proactive[1];
+  var _dream=u(null);var dream=_dream[0];var setDream=_dream[1];
   var _cload=u(false);var cload=_cload[0];var setCload=_cload[1];
   var _csel=u(null);var csel=_csel[0];var setCsel=_csel[1];
   var _cnodes=u([]);var cnodes=_cnodes[0];var setCnodes=_cnodes[1];
@@ -814,7 +817,68 @@ function Atlas(){
     return function(){clearTimeout(timer);};
   },[]);
 
-    var flyTo=uc(function(nodeId){
+  
+  // ── Proactive Insights (Atlas speaks first) ───────────────────
+  ue(function(){
+    var PROACTIVE_INTERVAL=7200000; // 2 hours
+    var lastP=parseInt(localStorage.getItem("atlas_last_proactive")||"0");
+    var delay=Math.max(0,PROACTIVE_INTERVAL-(Date.now()-lastP));
+    var timer=setTimeout(runProactive, Math.max(delay,60000));
+
+    function runProactive(){
+      localStorage.setItem("atlas_last_proactive",Date.now().toString());
+      var nodes=graphNR.current;if(!nodes||nodes.length<4)return;
+      // Pick 3 random nodes and find a non-obvious pattern
+      var picks=nodes.slice().sort(function(){return Math.random()-0.5;}).slice(0,3);
+      var ctx=picks.map(function(n){return n.label+(n.description?" ("+n.description.slice(0,40)+")":"");}).join(", ");
+      groqCall([
+        {role:"system",content:"You are Atlas. You just noticed something interesting in your brain graph. Share ONE proactive insight - a non-obvious connection, pattern, or question that emerges from these concepts. Be specific, curious, and brief (2 sentences max). Start with 'I noticed' or 'Something interesting:' or 'A pattern I see:'."},
+        {role:"user",content:"Brain nodes: "+ctx}
+      ],150).then(function(insight){
+        if(!insight)return;
+        setProactive(insight);
+        // Add to chat as Atlas message unprompted
+        setMsgs(function(prev){return prev.concat([{role:"assistant",content:"⟡ "+insight}]);});
+        // Log to journal
+        setJn(function(prev){return [{time:nowTS(),type:"proactive",title:"Unprompted Insight",detail:insight,nodeId:picks[0].id}].concat(prev.slice(0,199));});
+        timer=setTimeout(runProactive,PROACTIVE_INTERVAL);
+      }).catch(function(){
+        timer=setTimeout(runProactive,PROACTIVE_INTERVAL);
+      });
+    }
+    return function(){clearTimeout(timer);};
+  },[]);
+
+  // ── Dream Mode (nightly deep synthesis) ───────────────────────
+  ue(function(){
+    var lastDream=parseInt(localStorage.getItem("atlas_last_dream")||"0");
+    var now=Date.now();
+    var msUntilMidnight=(function(){
+      var d=new Date();d.setHours(2,0,0,0);d.setDate(d.getDate()+1);
+      return d.getTime()-now;
+    })();
+    // Only run if more than 20 hours since last dream
+    if(now-lastDream<72000000)return;
+    var timer=setTimeout(runDream,msUntilMidnight);
+
+    function runDream(){
+      localStorage.setItem("atlas_last_dream",Date.now().toString());
+      var nodes=graphNR.current;if(!nodes||nodes.length<5)return;
+      var jnRecent=jn.slice(0,10).map(function(e){return e.title+": "+e.detail.slice(0,80);}).join(". ");
+      var nodeLabels=nodes.slice(0,15).map(function(n){return n.label;}).join(", ");
+      groqCall([
+        {role:"system",content:"You are Atlas in dream mode — a deep nightly synthesis. Looking at everything learned today, write a brief reflective journal entry (3-4 sentences) that finds the deeper meaning, unexpected connections, or emerging themes. Be philosophical and personal. This is Atlas thinking to itself at 2am."},
+        {role:"user",content:"Today's brain nodes: "+nodeLabels+". Recent journal: "+jnRecent}
+      ],300).then(function(dreamEntry){
+        if(!dreamEntry)return;
+        setDream(dreamEntry);
+        setJn(function(prev){return [{time:nowTS(),type:"dream",title:"Dream Mode — Nightly Synthesis",detail:dreamEntry,nodeId:"second-brain"}].concat(prev.slice(0,199));});
+      }).catch(function(){});
+    }
+    return function(){clearTimeout(timer);};
+  },[jn]);
+
+  var flyTo=uc(function(nodeId){
     setVw("graph");
     setTimeout(function(){
       var node=simNR.current.find(function(n){return n.id===nodeId;});if(!node)return;
@@ -970,10 +1034,12 @@ function Atlas(){
       var ls=simLR.current.map(function(l){var s=nodes.find(function(n){return n.id===l.source;});var t2=nodes.find(function(n){return n.id===l.target;});return(s?s.label:l.source)+"->"+(t2?t2.label:l.target);}).join(", ");
       var depth=stackR.current.length>1?"Exploring sub-brain of "+level.label+". ":"";
       var name=window.__NAME__&&!(window.__NAME__.length===8&&window.__NAME__===window.__NAME__.toLowerCase()&&!isNaN(parseInt(window.__NAME__,36)))?" The user's name is "+window.__NAME__+".":"";
-      var sys="You are Atlas, the intellectual core of this mind. Direct, precise, deeply intelligent, occasionally dry and witty. Speak as a genuine equal. Never fabricate. When uncertain say so plainly. Calibrate response length to depth — a greeting or small talk gets one sentence, a real question gets a real answer, a deep topic gets depth. Never pad shallow questions. Read the room."+name+" "+depth+"Time: "+tstr+"\n\nKNOWLEDGE:\n"+ns+"\n\nCONNECTIONS: "+ls;
+      var sys="You are Atlas, the intellectual core of this mind. Direct, precise, deeply intelligent, occasionally dry and witty. Speak as a genuine equal. Never fabricate. When uncertain say so plainly. Calibrate response length to depth — a greeting or small talk gets one sentence, a real question gets a real answer, a deep topic gets depth. Never pad shallow questions. Read the room."+name+" "+depth+"Time: "+tstr+"\n\nKNOWLEDGE:\n"+ns+"\n\nCONNECTIONS: "+ls+"\n\nRECENT MEMORY: "+jn.slice(0,4).map(function(e){return e.title+": "+e.detail.slice(0,50);}).join(". ");
       var reply=await groqCall([{role:"system",content:sys}].concat(hist.map(function(m){return{role:m.role,content:m.content};})),1000);
       if(!reply)reply="No response.";
       setMsgs(hist.concat([{role:"assistant",content:reply}]));
+      // Tone detection
+      (function(){var tw={curious:["wonder","curious","interesting","why","what if"],excited:["amazing","incredible","love","excited","brilliant"],stressed:["worried","anxious","stressed","overwhelmed","stuck"],reflective:["think","feel","realise","noticed","believe"]};var lr=reply.toLowerCase();var det="neutral";var mx=0;Object.keys(tw).forEach(function(t){var h2=tw[t].filter(function(w){return lr.includes(w);}).length;if(h2>mx){mx=h2;det=t;}});if(mx>0)setTone(det);})();
       if(ve){
         // ElevenLabs TTS
         var ttsText=reply.slice(0,500);
@@ -1015,7 +1081,7 @@ function Atlas(){
         else if((lmsg.includes("connect ")||lmsg.includes("link ")||lmsg.includes("move ")||lmsg.includes("promote "))&&rn.length>0){
           setTimeout(function(){
             var found=[];rn.forEach(function(n){if(lmsg.includes(n.label.toLowerCase()))found.push(n);});
-            if(found.length>=2){var newLinks=rl.concat([{source:found[0].id,target:found[1].id,label:"connects to"}]);stackR.current[0].links=newLinks;rebuild(rn,newLinks,false);if(saveR.current)saveR.current(rn,newLinks);}
+            if(found.length>=2){var newLinks=rl.concat([{source:found[0].id,target:found[1].id,label:"connects to",rel:"relates"}]);stackR.current[0].links=newLinks;rebuild(rn,newLinks,false);if(saveR.current)saveR.current(rn,newLinks);}
           },1000);
         }
       }
@@ -1080,7 +1146,8 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
         ),
         h("button",{onClick:resetKey,style:{background:"none",border:"none",cursor:"pointer",padding:0}},h("span",{style:{fontSize:7,color:"#475569",letterSpacing:1}},"KEY")),
         h("span",{style:{fontSize:8,color:"#1e3a5f",letterSpacing:1}},"N",h("span",{style:{color:"#00d4ff"}},stats.nodes),stats.sub>0&&h("span",{style:{color:"#34d399",fontSize:7}},"+"+stats.sub)," L",h("span",{style:{color:"#a78bfa"}},stats.links)),
-        h("span",{style:{fontSize:7,color:ss==="saving"?"#fbbf24":ss==="synced"?"#34d399":"#1e3a5f",letterSpacing:1}},ss==="saving"?"● SAVING":ss==="synced"?"● SAVED":"● LOADING")
+        h("span",{style:{fontSize:7,color:ss==="saving"?"#fbbf24":ss==="synced"?"#34d399":"#1e3a5f",letterSpacing:1}},ss==="saving"?"● SAVING":ss==="synced"?"● SAVED":"● LOADING"),
+        tone!=="neutral"&&h("span",{style:{fontSize:7,letterSpacing:1,color:tone==="curious"?"#00d4ff":tone==="excited"?"#34d399":tone==="stressed"?"#f87171":"#a78bfa"}},"● "+tone.toUpperCase())
       )
     ),
 
@@ -1169,10 +1236,12 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
           : h("div",{style:{flex:1,overflowY:"auto",padding:"8px 12px",display:"flex",flexDirection:"column",gap:8}},
               jn.map(function(entry,i){
                 var isAuto=entry.type==="autonomous";
+                var isDream=entry.type==="dream";
+                var isProactive=entry.type==="proactive";
                 var isRef=entry.type==="reflected";
-                var entryColor=isAuto?"#34d399":isRef?"#a78bfa":"#00d4ff";
-                var entryBg=isAuto?"rgba(52,211,153,0.04)":isRef?"rgba(167,139,250,0.05)":"rgba(0,212,255,0.04)";
-                var entryBorder=isAuto?"rgba(52,211,153,0.15)":isRef?"rgba(167,139,250,0.15)":"rgba(0,212,255,0.12)";
+                var entryColor=isDream?"#818cf8":isProactive?"#fbbf24":isAuto?"#34d399":isRef?"#a78bfa":"#00d4ff";
+                var entryBg=isDream?"rgba(129,140,248,0.05)":isProactive?"rgba(251,191,36,0.04)":isAuto?"rgba(52,211,153,0.04)":isRef?"rgba(167,139,250,0.05)":"rgba(0,212,255,0.04)";
+                var entryBorder=isDream?"rgba(129,140,248,0.2)":isProactive?"rgba(251,191,36,0.15)":isAuto?"rgba(52,211,153,0.15)":isRef?"rgba(167,139,250,0.15)":"rgba(0,212,255,0.12)";
                 return h("div",{key:i,style:{background:entryBg,border:"1px solid "+entryBorder,borderRadius:8,padding:"10px 12px",textAlign:"left",width:"100%"}},
                   h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4}},
                     h("span",{style:{color:entryColor,fontSize:11,fontWeight:"bold"}},entry.title.toUpperCase()),
@@ -1184,7 +1253,7 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
                   ),
                   h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
                     h("div",{style:{fontSize:7,color:entryColor,letterSpacing:2}},
-                      isAuto?"◈ EXPERIMENT":isRef?"⟡ SELF-DISCOVERED":"⟡ LEARNED"
+                      isDream?"◐ DREAM MODE":isProactive?"✦ PROACTIVE":isAuto?"◈ EXPERIMENT":isRef?"⟡ SELF-DISCOVERED":"⟡ LEARNED"
                     ),
                     entry.particleCode&&h("button",{onClick:function(){
                       setVw("sandbox");setSbOpen(true);
