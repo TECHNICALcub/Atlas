@@ -40,11 +40,33 @@ body {
 <div id="setup">
   <h1>A T L A S</h1>
   <p style="font-size:9px;color:#1e3a5f;letter-spacing:2px;font-family:'Courier New',monospace">PERSONAL AI BRAIN</p>
-  <input type="password" id="accessCode" placeholder="Access code" autocomplete="off" spellcheck="false"/>
-  <input type="text" id="displayName" placeholder="Your name (shown in collective)" autocomplete="off" spellcheck="false"/>
-  <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" spellcheck="false"/>
-  <button onclick="initAtlas()">INITIALISE ATLAS</button>
-  <div class="note">Get a free key at console.groq.com</div>
+  
+  <!-- Tab switcher -->
+  <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid #0d2137;border-radius:4px;overflow:hidden">
+    <button id="tabSignIn" onclick="showTab('signin')" style="flex:1;padding:8px;background:#0d2137;border:none;color:#00d4ff;cursor:pointer;font-family:'Courier New',monospace;font-size:9px;letter-spacing:2px">SIGN IN</button>
+    <button id="tabSignUp" onclick="showTab('signup')" style="flex:1;padding:8px;background:none;border:none;color:#1e3a5f;cursor:pointer;font-family:'Courier New',monospace;font-size:9px;letter-spacing:2px">SIGN UP</button>
+  </div>
+
+  <!-- Sign In form -->
+  <div id="formSignIn">
+    <input type="password" id="accessCode" placeholder="Access code" autocomplete="off" spellcheck="false"/>
+    <input type="email" id="signInEmail" placeholder="Email" autocomplete="off" spellcheck="false"/>
+    <input type="password" id="signInPassword" placeholder="Password" autocomplete="off" spellcheck="false"/>
+    <button onclick="signIn()">SIGN IN TO ATLAS</button>
+    <div class="note" id="signInError" style="color:#f87171;display:none"></div>
+  </div>
+
+  <!-- Sign Up form -->
+  <div id="formSignUp" style="display:none">
+    <input type="password" id="accessCode2" placeholder="Access code" autocomplete="off" spellcheck="false"/>
+    <input type="text" id="signUpName" placeholder="Your name" autocomplete="off" spellcheck="false"/>
+    <input type="email" id="signUpEmail" placeholder="Email" autocomplete="off" spellcheck="false"/>
+    <input type="password" id="signUpPassword" placeholder="Password (min 6 chars)" autocomplete="off" spellcheck="false"/>
+    <input type="password" id="signUpGroq" placeholder="Groq API key (gsk_...)" autocomplete="off" spellcheck="false"/>
+    <button onclick="signUp()">CREATE ATLAS ACCOUNT</button>
+    <div class="note" id="signUpError" style="color:#f87171;display:none"></div>
+    <div class="note">Get a free Groq key at console.groq.com</div>
+  </div>
 </div>
 <div id="root" style="display:none;pointer-events:none"></div>
 <script>
@@ -149,15 +171,101 @@ var atlasStorage={
 
 function resetKey(){if(window.confirm("Reset API key?")){localStorage.removeItem("atlas_key");localStorage.removeItem("atlas_name");location.reload();}}
 
+function showTab(tab){
+  document.getElementById('formSignIn').style.display=tab==='signin'?'':'none';
+  document.getElementById('formSignUp').style.display=tab==='signup'?'':'none';
+  document.getElementById('tabSignIn').style.background=tab==='signin'?'#0d2137':'none';
+  document.getElementById('tabSignIn').style.color=tab==='signin'?'#00d4ff':'#1e3a5f';
+  document.getElementById('tabSignUp').style.background=tab==='signup'?'#0d2137':'none';
+  document.getElementById('tabSignUp').style.color=tab==='signup'?'#00d4ff':'#1e3a5f';
+}
+
+async function hashPassword(password){
+  var encoder=new TextEncoder();
+  var data=encoder.encode(password);
+  var hashBuffer=await crypto.subtle.digest('SHA-256',data);
+  var hashArray=Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+
+async function signIn(){
+  var code=document.getElementById('accessCode').value.trim();
+  if(code!=='11Mobiles*'){showError('signInError','Invalid access code');return;}
+  var email=document.getElementById('signInEmail').value.trim().toLowerCase();
+  var password=document.getElementById('signInPassword').value.trim();
+  if(!email||!password){showError('signInError','Please fill in all fields');return;}
+  
+  showError('signInError','Signing in...',true);
+  var hash=await hashPassword(password);
+  
+  try{
+    var r=await fetch(SUPABASE_URL+'/rest/v1/atlas_users?email=eq.'+encodeURIComponent(email)+'&select=id,name,groq_key,password_hash',{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+    });
+    var users=await r.json();
+    if(!users||users.length===0){showError('signInError','No account found with that email');return;}
+    var user=users[0];
+    if(user.password_hash!==hash){showError('signInError','Incorrect password');return;}
+    
+    // Save session to localStorage
+    localStorage.setItem('atlas_user_id',user.id);
+    localStorage.setItem('atlas_user_email',email);
+    localStorage.setItem('atlas_name',user.name||'');
+    localStorage.setItem('atlas_groq_key',user.groq_key||'');
+    
+    window.__USER_ID__=user.id;
+    window.__NAME__=user.name||'';
+    window.__K__=user.groq_key||'';
+    launch();
+  }catch(e){showError('signInError','Connection error: '+e.message);}
+}
+
+async function signUp(){
+  var code=document.getElementById('accessCode2').value.trim();
+  if(code!=='11Mobiles*'){showError('signUpError','Invalid access code');return;}
+  var name=document.getElementById('signUpName').value.trim();
+  var email=document.getElementById('signUpEmail').value.trim().toLowerCase();
+  var password=document.getElementById('signUpPassword').value.trim();
+  var groqKey=document.getElementById('signUpGroq').value.trim();
+  
+  if(!name||!email||!password||!groqKey){showError('signUpError','Please fill in all fields');return;}
+  if(password.length<6){showError('signUpError','Password must be at least 6 characters');return;}
+  if(!groqKey.startsWith('gsk_')){showError('signUpError','Groq key must start with gsk_');return;}
+  
+  showError('signUpError','Creating account...',true);
+  var hash=await hashPassword(password);
+  
+  try{
+    var r=await fetch(SUPABASE_URL+'/rest/v1/atlas_users',{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
+      body:JSON.stringify({email:email,password_hash:hash,name:name,groq_key:groqKey})
+    });
+    if(r.status===409){showError('signUpError','An account with that email already exists');return;}
+    if(!r.ok){showError('signUpError','Sign up failed: '+r.status);return;}
+    var users=await r.json();
+    var user=users[0];
+    
+    localStorage.setItem('atlas_user_id',user.id);
+    localStorage.setItem('atlas_user_email',email);
+    localStorage.setItem('atlas_name',name);
+    localStorage.setItem('atlas_groq_key',groqKey);
+    
+    window.__USER_ID__=user.id;
+    window.__NAME__=name;
+    window.__K__=groqKey;
+    launch();
+  }catch(e){showError('signUpError','Connection error: '+e.message);}
+}
+
+function showError(id,msg,info){
+  var el=document.getElementById(id);
+  if(el){el.textContent=msg;el.style.display='';el.style.color=info?'#34d399':'#f87171';}
+}
+
 function initAtlas(){
-  var code=document.getElementById("accessCode").value.trim();
-  if(code!=="11Mobiles*"){alert("Invalid access code");return;}
-  var name=document.getElementById("displayName").value.trim();
-  var key=document.getElementById("apiKey").value.trim();
-  if(!key){alert("Please enter your Groq API key");return;}
-  if(!key.startsWith("gsk_")){alert("Key must start with gsk_");return;}
-  if(name){localStorage.setItem("atlas_name",name);window.__NAME__=name;}
-  window.__K__=key;localStorage.setItem("atlas_key",key);launch();
+  // Legacy support - redirect to signIn
+  signIn();
 }
 
 function launch(){
@@ -170,6 +278,18 @@ function launch(){
 }
 
 window.addEventListener("load",function(){
+  // Auto-login if session exists
+  var savedUserId=localStorage.getItem('atlas_user_id');
+  var savedKey=localStorage.getItem('atlas_groq_key');
+  var savedName=localStorage.getItem('atlas_name');
+  if(savedUserId&&savedKey){
+    window.__USER_ID__=savedUserId;
+    window.__K__=savedKey;
+    window.__NAME__=savedName||'';
+    launch();
+    return;
+  }
+  
   var s=localStorage.getItem("atlas_key")||localStorage.getItem("atlas_api_key");
   if(s&&s.startsWith("gsk_")){
     window.__K__=s;
@@ -466,6 +586,8 @@ function Atlas(){
         linesR.current.material.opacity=0.22+0.08*Math.sin(t*0.015);
       }
       ren.render(scene,cam);
+      // Sync positions to graphNR every 5s so saves include positions
+      if(t%300===0&&simNR.current.length>0)graphNR.current=simNR.current;
       // Auto-recovery: if particles have all collapsed, spread them out
       if(sbTick%300===0){
         var allZero=true;
@@ -483,7 +605,7 @@ function Atlas(){
     animLoop();
     (async function(){
       try{
-        var bkey="atlas-brain-"+(window.__K__?window.__K__.slice(4,12):"default");
+        var bkey="atlas-brain-"+(window.__USER_ID__||window.__K__?((window.__USER_ID__||window.__K__.slice(4,12))):"default");
         var candidates=[];
         var k1=await atlasStorage.get(bkey);
         if(k1&&k1.value){try{var p1=JSON.parse(k1.value);if(p1.nodes&&p1.nodes.length>0)candidates.push(p1);}catch(e){}}
@@ -499,6 +621,10 @@ function Atlas(){
           if(best.subBrains)Object.entries(best.subBrains).forEach(function(e){cacheR.current.set(e[0],e[1]);});
           if(best.journal&&best.journal.length>0)setJn(best.journal);
           rebuild(best.nodes,best.links||[]);setSs("synced");
+          // Reset camera to look at origin after load
+          setTimeout(function(){
+            if(trR.current){trR.current.radius=520;applyCAM(camR.current,trR.current.rotQ,520);}
+          },500);
           var lastR=parseInt(localStorage.getItem("atlas_last_reflect")||"0");
           if(Date.now()-lastR>3600000){localStorage.setItem("atlas_last_reflect",Date.now().toString());setTimeout(function(){selfReflect(best.nodes,best.links||[]);},5000);}
           // One-time library sweep for existing nodes
@@ -545,7 +671,7 @@ function Atlas(){
       var existing=simNR.current.find(function(n){return n.id===node.id;});
       if(existing)return;
       var sp=200;
-      var simNode=Object.assign({},node,{x:(Math.random()-0.5)*sp,y:(Math.random()-0.5)*sp,z:(Math.random()-0.5)*sp,vx:0,vy:0,vz:0});
+      var hp=isFinite(node.x)&&isFinite(node.y)&&(node.x!==0||node.y!==0||node.z!==0);var simNode=Object.assign({},node,{x:hp?node.x:(Math.random()-0.5)*sp,y:hp?node.y:(Math.random()-0.5)*sp,z:hp?node.z:(Math.random()-0.5)*sp,vx:0,vy:0,vz:0});
       var mesh=new THREE.Mesh(new THREE.SphereGeometry(r,16,16),new THREE.MeshBasicMaterial({color:col}));
       mesh.userData.nodeId=node.id;mesh.position.set(simNode.x,simNode.y,simNode.z);scene.add(mesh);simNode.mesh=mesh;
       var glow=new THREE.Mesh(new THREE.SphereGeometry(r*2.2,10,10),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.06,blending:THREE.AdditiveBlending,depthWrite:false}));
@@ -574,7 +700,7 @@ function Atlas(){
     try{
       setSs("saving");
       var sb={};cacheR.current.forEach(function(v,k){sb[k]=v;});
-      var bkey="atlas-brain-"+(window.__K__?window.__K__.slice(4,12):"default");
+      var bkey="atlas-brain-"+(window.__USER_ID__||window.__K__?((window.__USER_ID__||window.__K__.slice(4,12))):"default");
       await atlasStorage.set(bkey,JSON.stringify({nodes:nodes,links:links,subBrains:sb,journal:journalR.current||[]}));
       setSs("synced");
     }catch(e){setSs("synced");}
@@ -686,6 +812,8 @@ function Atlas(){
       }
       posA.needsUpdate=true;colA.needsUpdate=true;szA.needsUpdate=true;
       ren.render(scene,cam);
+      // Sync positions to graphNR every 5s so saves include positions
+      if(t%300===0&&simNR.current.length>0)graphNR.current=simNR.current;
       // Auto-recovery: if particles have all collapsed, spread them out
       if(sbTick%300===0){
         var allZero=true;
@@ -768,7 +896,7 @@ function Atlas(){
     function runAutonomousLoop(){
       localStorage.setItem("atlas_last_autonomous",Date.now().toString());
       var nodes=graphNR.current;if(!nodes||nodes.length<3)return;
-      var bkey="atlas-brain-"+(window.__K__?window.__K__.slice(4,12):"default");
+      var bkey="atlas-brain-"+(window.__USER_ID__||window.__K__?((window.__USER_ID__||window.__K__.slice(4,12))):"default");
 
       // Pick 2-3 nodes to focus on
       var picks=nodes.slice().sort(function(){return Math.random()-0.5;}).slice(0,3);
@@ -925,7 +1053,7 @@ function Atlas(){
   // ── User presence tracking ────────────────────────────────────
   ue(function(){
     if(!window.__K__)return;
-    var uid="atlas-brain-"+(window.__K__.slice(4,12));
+    var uid=window.__USER_ID__||(window.__K__?window.__K__.slice(4,12):"anon");
     var INTERVAL=30000;
 
     function heartbeat(){
@@ -1101,7 +1229,7 @@ function Atlas(){
       try{
         var imported=JSON.parse(pasted);
         if(imported.nodes&&imported.nodes.length>0){
-          var bkey="atlas-brain-"+(window.__K__?window.__K__.slice(4,12):"default");
+          var bkey="atlas-brain-"+(window.__USER_ID__||window.__K__?((window.__USER_ID__||window.__K__.slice(4,12))):"default");
           stackR.current=[{nodes:imported.nodes,links:imported.links||[]}];
           graphNR.current=imported.nodes;
           rebuild(imported.nodes,imported.links||[]);
@@ -1253,6 +1381,7 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
           activeUsers>0&&h("span",{style:{fontSize:7,color:"#00d4ff",letterSpacing:1,marginLeft:2}},"● "+activeUsers)
         ),
         h("button",{onClick:resetKey,style:{background:"none",border:"none",cursor:"pointer",padding:0}},h("span",{style:{fontSize:7,color:"#475569",letterSpacing:1}},"KEY")),
+            h("button",{onClick:function(){localStorage.removeItem("atlas_user_id");localStorage.removeItem("atlas_groq_key");localStorage.removeItem("atlas_name");localStorage.removeItem("atlas_user_email");location.reload();},style:{background:"none",border:"none",cursor:"pointer",padding:0}},h("span",{style:{fontSize:7,color:"#f87171",letterSpacing:1}},"OUT")),
         h("span",{style:{fontSize:8,color:"#1e3a5f",letterSpacing:1}},"N",h("span",{style:{color:"#00d4ff"}},stats.nodes),stats.sub>0&&h("span",{style:{color:"#34d399",fontSize:7}},"+"+stats.sub)," L",h("span",{style:{color:"#a78bfa"}},stats.links)),
         h("span",{style:{fontSize:7,color:ss==="saving"?"#fbbf24":ss==="synced"?"#34d399":"#1e3a5f",letterSpacing:1}},ss==="saving"?"● SAVING":ss==="synced"?"● SAVED":"● LOADING"),
         tone!=="neutral"&&h("span",{style:{fontSize:7,letterSpacing:1,color:tone==="curious"?"#00d4ff":tone==="excited"?"#34d399":tone==="stressed"?"#f87171":"#a78bfa"}},"● "+tone.toUpperCase())
