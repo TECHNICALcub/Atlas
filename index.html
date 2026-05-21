@@ -300,6 +300,7 @@ function Atlas(){
   var sbSimR=ur([]),sbLinesR=ur(null),sbTrR=ur({rotQ:new THREE.Quaternion(),velDx:0,velDy:0,radius:500,dragging:false,lastX:0,lastY:0});
   var sbPinR=ur(null),sbPdR=ur(null),sbTdR=ur(null),sbRcR=ur(new THREE.Raycaster());
   var sbUserFnR=ur(null),sbParticlesR=ur([]),sbTargetRadiusR=ur(350),sbExperimentsR=ur([]);
+  var pendingBrainR=ur(null);
 
   var _sn=u(null);var selNode=_sn[0];var setSelNode=_sn[1];
   var _vw=u("graph");var vw=_vw[0];var setVw=_vw[1];
@@ -319,6 +320,8 @@ function Atlas(){
   var _il=u(false);var il=_il[0];var setIl=_il[1];
   var _tr=u("");var tr2=_tr[0];var setTr=_tr[1];
   var _jvw=u("mine");var jvw=_jvw[0];var setJvw=_jvw[1];
+  var _totalUsers=u(0);var totalUsers=_totalUsers[0];var setTotalUsers=_totalUsers[1];
+  var _activeUsers=u(0);var activeUsers=_activeUsers[0];var setActiveUsers=_activeUsers[1];
   var _tone=u("neutral");var tone=_tone[0];var setTone=_tone[1];
   var _proactive=u(null);var proactive=_proactive[0];var setProactive=_proactive[1];
   var _dream=u(null);var dream=_dream[0];var setDream=_dream[1];
@@ -349,9 +352,13 @@ function Atlas(){
     var sp=200;
     simNR.current=nodes.map(function(node){
       node=Object.assign({},node,{id:String(node.id)});
-      // Always start near origin so nodes are always visible
+      // Use saved position, prev sim position, or random spread
+      var prev=pm[String(node.id)];
+      var sx=prev?prev.x:(isFinite(node.x)&&node.x!==0?node.x:(Math.random()-0.5)*sp);
+      var sy=prev?prev.y:(isFinite(node.y)&&node.y!==0?node.y:(Math.random()-0.5)*sp);
+      var sz=prev?prev.z:(isFinite(node.z)&&node.z!==0?node.z:(Math.random()-0.5)*sp);
       return Object.assign({},node,{
-        x:(Math.random()-0.5)*sp,y:(Math.random()-0.5)*sp,z:(Math.random()-0.5)*sp,
+        x:sx,y:sy,z:sz,
         vx:0,vy:0,vz:0
       });
     });
@@ -396,6 +403,8 @@ function Atlas(){
     var subCount=0;cacheR.current.forEach(function(b){subCount+=b.nodes.filter(function(n){return !n.isHub;}).length;});
     setSt({nodes:nodes.length,links:fl.length,sub:subCount});
     setSelNode(null);
+    // Sync positions back to graphNR so saves include x,y,z
+    graphNR.current=simNR.current;
   },[]);
 
   ue(function(){
@@ -460,8 +469,29 @@ function Atlas(){
         linesR.current.material.opacity=0.22+0.08*Math.sin(t*0.015);
       }
       ren.render(scene,cam);
+      // Auto-recovery: if particles have all collapsed, spread them out
+      if(sbTick%300===0){
+        var allZero=true;
+        for(var ck=0;ck<Math.min(10,ps.length);ck++){
+          if(Math.abs(ps[ck].x)>0.01||Math.abs(ps[ck].y)>0.01){allZero=false;break;}
+        }
+        if(allZero&&ps.length>0){
+          for(var ri=0;ri<ps.length;ri++){
+            ps[ri].x=(Math.random()-0.5)*80;ps[ri].y=(Math.random()-0.5)*80;ps[ri].z=(Math.random()-0.5)*80;
+            ps[ri].vx=(Math.random()-0.5)*0.3;ps[ri].vy=(Math.random()-0.5)*0.3;ps[ri].vz=(Math.random()-0.5)*0.3;
+          }
+        }
+      }
     }
     animLoop();
+    // Check for brain that loaded before scene was ready
+    setTimeout(function(){
+      if(pendingBrainR.current){
+        var pb=pendingBrainR.current;
+        pendingBrainR.current=null;
+        rebuild(pb.nodes,pb.links);
+      }
+    },200);
     (async function(){
       try{
         var bkey="atlas-brain-"+(window.__K__?window.__K__.slice(4,12):"default");
@@ -479,7 +509,10 @@ function Atlas(){
           graphNR.current=best.nodes;stackR.current[0].nodes=best.nodes;stackR.current[0].links=best.links||[];
           if(best.subBrains)Object.entries(best.subBrains).forEach(function(e){cacheR.current.set(e[0],e[1]);});
           if(best.journal&&best.journal.length>0)setJn(best.journal);
-          rebuild(best.nodes,best.links||[]);setSs("synced");
+          // Store brain and rebuild when scene is ready
+pendingBrainR.current={nodes:best.nodes,links:best.links||[]};
+if(sceneR.current){rebuild(best.nodes,best.links||[]);}
+setSs("synced");
           var lastR=parseInt(localStorage.getItem("atlas_last_reflect")||"0");
           if(Date.now()-lastR>3600000){localStorage.setItem("atlas_last_reflect",Date.now().toString());setTimeout(function(){selfReflect(best.nodes,best.links||[]);},5000);}
           // One-time library sweep for existing nodes
@@ -646,16 +679,40 @@ function Atlas(){
         try{sbUserFnR.current(ps,sbTick*0.016,ps.length);}
         catch(e){sbUserFnR.current=null;setSbStat("ERR: "+e.message);}
       }
-      // Upload to GPU
+      // Upload to GPU with NaN guard
       var pa=posA.array,ca=colA.array,sa=szA.array;
       for(var i2=0;i2<Math.min(ps.length,SB_N);i2++){
         var p=ps[i2];
+        // Sanitise - reset any NaN/Infinity particles to safe position
+        if(!isFinite(p.x)||!isFinite(p.y)||!isFinite(p.z)){
+          p.x=(Math.random()-0.5)*60;p.y=(Math.random()-0.5)*60;p.z=(Math.random()-0.5)*60;
+          p.vx=0;p.vy=0;p.vz=0;
+        }
+        if(!isFinite(p.r)||p.r<0)p.r=0.2;
+        if(!isFinite(p.g)||p.g<0)p.g=0.8;
+        if(!isFinite(p.b)||p.b<0)p.b=1.0;
         pa[i2*3]=p.x;pa[i2*3+1]=p.y;pa[i2*3+2]=p.z;
-        ca[i2*4]=p.r;ca[i2*4+1]=p.g;ca[i2*4+2]=p.b;ca[i2*4+3]=p.a;
-        sa[i2]=p.size||1;
+        ca[i2*4]=Math.min(1,Math.max(0,p.r||0.2));
+        ca[i2*4+1]=Math.min(1,Math.max(0,p.g||0.8));
+        ca[i2*4+2]=Math.min(1,Math.max(0,p.b||1.0));
+        ca[i2*4+3]=Math.min(1,Math.max(0,p.a||0.85));
+        sa[i2]=Math.max(0.1,Math.min(5,p.size||1));
       }
       posA.needsUpdate=true;colA.needsUpdate=true;szA.needsUpdate=true;
       ren.render(scene,cam);
+      // Auto-recovery: if particles have all collapsed, spread them out
+      if(sbTick%300===0){
+        var allZero=true;
+        for(var ck=0;ck<Math.min(10,ps.length);ck++){
+          if(Math.abs(ps[ck].x)>0.01||Math.abs(ps[ck].y)>0.01){allZero=false;break;}
+        }
+        if(allZero&&ps.length>0){
+          for(var ri=0;ri<ps.length;ri++){
+            ps[ri].x=(Math.random()-0.5)*80;ps[ri].y=(Math.random()-0.5)*80;ps[ri].z=(Math.random()-0.5)*80;
+            ps[ri].vx=(Math.random()-0.5)*0.3;ps[ri].vy=(Math.random()-0.5)*0.3;ps[ri].vz=(Math.random()-0.5)*0.3;
+          }
+        }
+      }
     }
     sbAnim();
 
@@ -877,6 +934,44 @@ function Atlas(){
     }
     return function(){clearTimeout(timer);};
   },[jn]);
+
+
+  // ── User presence tracking ────────────────────────────────────
+  ue(function(){
+    if(!window.__K__)return;
+    var uid="atlas-brain-"+(window.__K__.slice(4,12));
+    var INTERVAL=30000;
+
+    function heartbeat(){
+      // Upsert this user's presence
+      fetch(SUPABASE_URL+"/rest/v1/atlas_presence",{
+        method:"POST",
+        headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},
+        body:JSON.stringify({id:uid,last_seen:new Date().toISOString()})
+      }).catch(function(){});
+
+      // Count total users
+      fetch(SUPABASE_URL+"/rest/v1/atlas_presence?select=id",{
+        headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Prefer":"count=exact","Range":"0-0"}
+      }).then(function(r){
+        var count=parseInt(r.headers.get("content-range")||"0");
+        if(!isNaN(count))setTotalUsers(count);
+      }).catch(function(){});
+
+      // Count active users (seen in last 2 minutes)
+      var twoMinsAgo=new Date(Date.now()-120000).toISOString();
+      fetch(SUPABASE_URL+"/rest/v1/atlas_presence?select=id&last_seen=gte."+twoMinsAgo,{
+        headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Prefer":"count=exact","Range":"0-0"}
+      }).then(function(r){
+        var count=parseInt(r.headers.get("content-range")||"0");
+        if(!isNaN(count))setActiveUsers(count);
+      }).catch(function(){});
+    }
+
+    heartbeat();
+    var timer=setInterval(heartbeat,INTERVAL);
+    return function(){clearInterval(timer);};
+  },[]);
 
   var flyTo=uc(function(nodeId){
     setVw("graph");
@@ -1142,7 +1237,9 @@ function Atlas(){
 h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212,255,0.2)",borderRadius:3,cursor:"pointer",padding:"1px 5px",color:"#00d4ff",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"UNFOLD"),
         vs&&h("button",{onClick:function(){setVe(function(v){return !v;});},style:{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}},
           h("div",{style:{width:5,height:5,borderRadius:"50%",background:ve?"#fbbf24":"#1e3a5f",boxShadow:ve?"0 0 7px #fbbf24":"none"}}),
-          h("span",{style:{fontSize:7,color:ve?"#fbbf24":"#1e3a5f",letterSpacing:1}},ve?"MUTE":"SPEAK")
+          h("span",{style:{fontSize:7,color:ve?"#fbbf24":"#1e3a5f",letterSpacing:1}},ve?"MUTE":"SPEAK"),
+          totalUsers>0&&h("span",{style:{fontSize:7,color:"#34d399",letterSpacing:1,marginLeft:4}},"⬡ "+totalUsers),
+          activeUsers>0&&h("span",{style:{fontSize:7,color:"#00d4ff",letterSpacing:1,marginLeft:2}},"● "+activeUsers)
         ),
         h("button",{onClick:resetKey,style:{background:"none",border:"none",cursor:"pointer",padding:0}},h("span",{style:{fontSize:7,color:"#475569",letterSpacing:1}},"KEY")),
         h("span",{style:{fontSize:8,color:"#1e3a5f",letterSpacing:1}},"N",h("span",{style:{color:"#00d4ff"}},stats.nodes),stats.sub>0&&h("span",{style:{color:"#34d399",fontSize:7}},"+"+stats.sub)," L",h("span",{style:{color:"#a78bfa"}},stats.links)),
