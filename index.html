@@ -597,7 +597,13 @@ function Atlas(){
         var bkey="atlas-brain-"+(window.__USER_ID__||window.__K__?((window.__USER_ID__||window.__K__.slice(4,12))):"default");
         var candidates=[];
         var k1=await atlasStorage.get(bkey);
-        if(k1&&k1.value){try{var p1=JSON.parse(k1.value);if(p1.nodes&&p1.nodes.length>0)candidates.push(p1);}catch(e){}}
+        if(k1&&k1.value){try{var p1=JSON.parse(k1.value);if(p1.nodes&&p1.nodes.length>0){
+              // Strip Three.js mesh data - it gets rebuilt
+              p1.nodes=p1.nodes.map(function(n){
+                return {id:n.id,label:n.label,group:n.group,description:n.description,
+                        x:n.x,y:n.y,z:n.z,vx:n.vx,vy:n.vy,vz:n.vz,parent:n.parent};
+              });
+              candidates.push(p1);}catch(e){}}
         ["a__"+bkey,"atlas__atlas-brain","atlas-brain"].forEach(function(k){
           try{var v=localStorage.getItem(k);if(v){var p=JSON.parse(v);if(p.nodes&&p.nodes.length>0)candidates.push(p);}}catch(e){}
         });
@@ -690,7 +696,8 @@ function Atlas(){
       setSs("saving");
       var sb={};cacheR.current.forEach(function(v,k){sb[k]=v;});
       var bkey="atlas-brain-"+(window.__USER_ID__||window.__K__?((window.__USER_ID__||window.__K__.slice(4,12))):"default");
-      await atlasStorage.set(bkey,JSON.stringify({nodes:nodes,links:links,subBrains:sb,journal:journalR.current||[]}));
+      var cleanNodes=nodes.map(function(n){return {id:n.id,label:n.label,group:n.group,description:n.description,x:n.x,y:n.y,z:n.z,vx:n.vx,vy:n.vy,vz:n.vz,parent:n.parent};});
+      await atlasStorage.set(bkey,JSON.stringify({nodes:cleanNodes,links:links,subBrains:sb,journal:journalR.current||[]}));
       setSs("synced");
     }catch(e){setSs("synced");}
   },[]);
