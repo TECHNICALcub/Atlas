@@ -23,18 +23,7 @@ html,body{width:100%;height:100%;background:#020712;overflow:hidden;font-family:
 ::-webkit-scrollbar{width:2px}
 ::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.08);border-radius:2px}
 </style>
-<style>
-:root {
-  --sat: env(safe-area-inset-top, 24px);
-  --sab: env(safe-area-inset-bottom, 48px);
-}
-body {
-  padding-top: var(--sat);
-  padding-bottom: var(--sab);
-  box-sizing: border-box;
-  background: #020712;
-}
-</style>
+<style>body{background:#020712;}</style>
 </head>
 <body>
 <div id="setup">
@@ -468,7 +457,7 @@ function Atlas(){
       });
     });
     if(linesR.current){scene.remove(linesR.current);linesR.current.geometry.dispose();linesR.current.material.dispose();linesR.current=null;}
-    var sp=200;
+    var sp=400;
     simNR.current=nodes.map(function(node){
       node=Object.assign({},node,{id:String(node.id)});
       // Use saved position, prev sim position, or random spread
@@ -533,7 +522,7 @@ function Atlas(){
     var W=mount.offsetWidth||window.innerWidth;
     var H=mount.offsetHeight||window.innerHeight;
     var scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x020712,0.0006);sceneR.current=scene;
-    var cam=new THREE.PerspectiveCamera(60,W/H,1,4000);camR.current=cam;applyCAM(cam,trR.current.rotQ,trR.current.radius);
+    var cam=new THREE.PerspectiveCamera(60,W/H,1,10000);camR.current=cam;applyCAM(cam,trR.current.rotQ,trR.current.radius);
     var ren=new THREE.WebGLRenderer({antialias:true,alpha:false});
     ren.setSize(W,H);ren.setPixelRatio(Math.min(window.devicePixelRatio,2));ren.setClearColor(0x020712,1);
     mount.appendChild(ren.domElement);rendR.current=ren;
@@ -621,10 +610,10 @@ function Atlas(){
           if(best.subBrains)Object.entries(best.subBrains).forEach(function(e){cacheR.current.set(e[0],e[1]);});
           if(best.journal&&best.journal.length>0)setJn(best.journal);
           rebuild(best.nodes,best.links||[]);setSs("synced");
-          // Reset camera to look at origin after load
+          // Reset camera after simulation settles
           setTimeout(function(){
-            if(trR.current){trR.current.radius=520;applyCAM(camR.current,trR.current.rotQ,520);}
-          },500);
+            if(trR.current){trR.current.radius=600;applyCAM(camR.current,trR.current.rotQ,600);}
+          },2000);
           var lastR=parseInt(localStorage.getItem("atlas_last_reflect")||"0");
           if(Date.now()-lastR>3600000){localStorage.setItem("atlas_last_reflect",Date.now().toString());setTimeout(function(){selfReflect(best.nodes,best.links||[]);},5000);}
           // One-time library sweep for existing nodes
@@ -670,7 +659,7 @@ function Atlas(){
       var r=5+Math.min(connCount*1.4,12);node.r=r;
       var existing=simNR.current.find(function(n){return n.id===node.id;});
       if(existing)return;
-      var sp=200;
+      var sp=400;
       var hp=isFinite(node.x)&&isFinite(node.y)&&(node.x!==0||node.y!==0||node.z!==0);var simNode=Object.assign({},node,{x:hp?node.x:(Math.random()-0.5)*sp,y:hp?node.y:(Math.random()-0.5)*sp,z:hp?node.z:(Math.random()-0.5)*sp,vx:0,vy:0,vz:0});
       var mesh=new THREE.Mesh(new THREE.SphereGeometry(r,16,16),new THREE.MeshBasicMaterial({color:col}));
       mesh.userData.nodeId=node.id;mesh.position.set(simNode.x,simNode.y,simNode.z);scene.add(mesh);simNode.mesh=mesh;
@@ -1347,9 +1336,9 @@ function Atlas(){
       }
       pdR.current=null;}
   }
-  function onWhl(e){var tr=trR.current;tr.radius=Math.max(150,Math.min(1200,tr.radius+e.deltaY*0.5));applyCAM(camR.current,tr.rotQ,tr.radius);}
+  function onWhl(e){var tr=trR.current;tr.radius=Math.max(80,Math.min(5000,tr.radius+e.deltaY*0.8));applyCAM(camR.current,tr.rotQ,tr.radius);}
   function onTS(e){if(vw!=="graph")return;var tr=trR.current;if(e.touches.length===1){tr.dragging=true;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;tr.velDx=0;tr.velDy=0;tdR.current={x:e.touches[0].clientX,y:e.touches[0].clientY,time:Date.now()};}else if(e.touches.length===2){tr.dragging=false;pinR.current=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}}
-  function onTM(e){e.preventDefault();var tr=trR.current;if(e.touches.length===1&&tr.dragging){var dx=e.touches[0].clientX-tr.lastX,dy=e.touches[0].clientY-tr.lastY;applyTB(tr.rotQ,dx,dy,0.005);applyCAM(camR.current,tr.rotQ,tr.radius);tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;}else if(e.touches.length===2&&pinR.current!=null){var dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);tr.radius=Math.max(150,Math.min(1200,tr.radius-(dist-pinR.current)*1.2));applyCAM(camR.current,tr.rotQ,tr.radius);pinR.current=dist;}}
+  function onTM(e){e.preventDefault();var tr=trR.current;if(e.touches.length===1&&tr.dragging){var dx=e.touches[0].clientX-tr.lastX,dy=e.touches[0].clientY-tr.lastY;applyTB(tr.rotQ,dx,dy,0.005);applyCAM(camR.current,tr.rotQ,tr.radius);tr.velDx=dx*0.005;tr.velDy=dy*0.005;tr.lastX=e.touches[0].clientX;tr.lastY=e.touches[0].clientY;}else if(e.touches.length===2&&pinR.current!=null){var dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);tr.radius=Math.max(80,Math.min(5000,tr.radius-(dist-pinR.current)*1.2));applyCAM(camR.current,tr.rotQ,tr.radius);pinR.current=dist;}}
   function onTE(e){var tr=trR.current;tr.dragging=false;pinR.current=null;var td=tdR.current;if(td&&e.changedTouches.length===1){var t2=e.changedTouches[0];if(Math.hypot(t2.clientX-td.x,t2.clientY-td.y)<12&&Date.now()-td.time<350){var mount=mountR.current,r=mount.getBoundingClientRect();var ndc=new THREE.Vector2(((t2.clientX-r.left)/r.width)*2-1,-((t2.clientY-r.top)/r.height)*2+1);rcR.current.setFromCamera(ndc,camR.current);var meshes=simNR.current.map(function(n){return n.mesh;}).filter(Boolean);var hits=rcR.current.intersectObjects(meshes);if(hits.length){var hit=simNR.current.find(function(n){return n.mesh===hits[0].object;});setSelNode(hit?Object.assign({},hit):null);}else setSelNode(null);}}tdR.current=null;}
 
   var nc=selNode?PALETTE[selNode.group%PALETTE.length]:"#00d4ff";
@@ -1374,6 +1363,7 @@ function Atlas(){
         al&&h("span",{style:{fontSize:7,color:"#a78bfa",letterSpacing:1,animation:"blink 0.6s ease-in-out infinite"}},"⟡ LEARNING"),
         ir&&h("span",{style:{fontSize:7,color:"#fbbf24",letterSpacing:1,animation:"blink 0.4s ease-in-out infinite"}},"⟡ THINKING"),
 h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212,255,0.2)",borderRadius:3,cursor:"pointer",padding:"1px 5px",color:"#00d4ff",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"UNFOLD"),
+            h("button",{onClick:function(){var ns=simNR.current;if(!ns||ns.length===0)return;var maxD=0;ns.forEach(function(n){var d=Math.sqrt(n.x*n.x+n.y*n.y+n.z*n.z);if(d>maxD)maxD=d;});var fitR=Math.max(300,Math.min(5000,maxD*2.2));trR.current.radius=fitR;applyCAM(camR.current,trR.current.rotQ,fitR);},style:{background:"none",border:"1px solid rgba(0,212,255,0.2)",borderRadius:3,cursor:"pointer",padding:"1px 5px",color:"#00d4ff",fontSize:7,letterSpacing:1,fontFamily:"inherit"}},"FIT"),
         vs&&h("button",{onClick:function(){setVe(function(v){return !v;});},style:{background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}},
           h("div",{style:{width:5,height:5,borderRadius:"50%",background:ve?"#fbbf24":"#1e3a5f",boxShadow:ve?"0 0 7px #fbbf24":"none"}}),
           h("span",{style:{fontSize:7,color:ve?"#fbbf24":"#1e3a5f",letterSpacing:1}},ve?"MUTE":"SPEAK"),
@@ -1556,7 +1546,7 @@ h("button",{onClick:unfold,style:{background:"none",border:"1px solid rgba(0,212
               h("div",{style:{fontSize:9,color:"#475569",textAlign:"center",lineHeight:2,maxWidth:240}},"A particle physics space Atlas uses to explore and visualise ideas. Every hour Atlas runs an experiment here and logs its observations."),
               h("button",{onClick:function(){setSbOpen(true);},style:{marginTop:8,padding:"9px 22px",background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.3)",color:"#34d399",borderRadius:6,cursor:"pointer",fontFamily:"inherit",fontSize:9,letterSpacing:3}},"⟡ ENTER")
             )
-          : h("div",{ref:sbMountR,style:{width:"100%",height:"100%",cursor:"grab",touchAction:"none"},
+          : h("div",{ref:sbMountR,style:{width:"100%",height:"100%",cursor:"grab",touchAction:"none",background:"#000308"},
               onPointerDown:onSbPD,onPointerMove:onSbPM,onPointerUp:onSbPU,onPointerLeave:onSbPU,
               onWheel:onSbWhl,onTouchStart:onSbTS,onTouchMove:onSbTM,onTouchEnd:onSbTE})
         ),
