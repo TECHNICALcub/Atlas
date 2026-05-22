@@ -597,7 +597,7 @@ function Atlas(){
         var bkey="atlas-brain-"+(window.__USER_ID__||window.__K__?((window.__USER_ID__||window.__K__.slice(4,12))):"default");
         var candidates=[];
         var k1=await atlasStorage.get(bkey);
-        if(k1&&k1.value){try{var p1=JSON.parse(k1.value);if(p1.nodes&&p1.nodes.length>0){p1.nodes=p1.nodes.map(function(n){return{id:n.id,label:n.label,group:n.group,description:n.description,x:n.x,y:n.y,z:n.z,vx:n.vx||0,vy:n.vy||0,vz:n.vz||0,parent:n.parent||null};});candidates.push(p1);}}catch(e){}
+        if(k1&&k1.value){try{var p1=JSON.parse(k1.value);if(p1.nodes&&p1.nodes.length>0){p1.nodes=p1.nodes.map(function(n){return{id:n.id,label:n.label,group:n.group,description:n.description,x:n.x,y:n.y,z:n.z,vx:n.vx||0,vy:n.vy||0,vz:n.vz||0,parent:n.parent||null};});candidates.push(p1);}}catch(e){}}
         ["a__"+bkey,"atlas__atlas-brain","atlas-brain"].forEach(function(k){
           try{var v=localStorage.getItem(k);if(v){var p=JSON.parse(v);if(p.nodes&&p.nodes.length>0)candidates.push(p);}}catch(e){}
         });
@@ -618,23 +618,9 @@ function Atlas(){
           if(Date.now()-lastR>3600000){localStorage.setItem("atlas_last_reflect",Date.now().toString());setTimeout(function(){selfReflect(best.nodes,best.links||[]);},5000);}
           // One-time library sweep for existing nodes
           var lastSweep=parseInt(localStorage.getItem("atlas_last_lib_sweep")||"0");
-          if(Date.now()-lastSweep>86400000){// Once per day
+          if(Date.now()-lastSweep>86400000){
             localStorage.setItem("atlas_last_lib_sweep",Date.now().toString());
-            setTimeout(function(){
-              var missing=best.nodes.filter(function(n){return !PARTICLE_LIB[String(n.id)];});
-              var delay=0;
-              missing.slice(0,10).forEach(function(node){// Max 10 per day to respect GitHub rate limits
-                delay+=8000;// 8 seconds apart
-                setTimeout(function(){
-                  searchGithubForParticle(node.label).then(function(code){
-                    if(code){
-                      PARTICLE_LIB[String(node.id)]=code;
-                      console.log("[Atlas] Found particle code for",node.label);
-                    }
-                  }).catch(function(){});
-                },delay);
-              });
-            },20000);// Start 20s after load
+            setTimeout(function(){var missing=best.nodes.filter(function(n){return !PARTICLE_LIB[String(n.id)];});var delay=0;missing.slice(0,10).forEach(function(node){delay+=8000;setTimeout(function(){searchGithubForParticle(node.label).then(function(code){if(code){PARTICLE_LIB[String(node.id)]=code;}}).catch(function(){});},delay);});},20000);
           }
           setTimeout(function(){setBd(true);},1200);return;
         }
